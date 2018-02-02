@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" serverName="ssh://pi@10.0.0.4:22/usr/bin/python3" autoUploadExternalChanges="true" showNewOnSourceInSync="false">
+    <serverData>
+      <paths name="ssh://pi@10.0.0.4:22/usr/bin/python3">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/Documents/PyCharmProjects/ICS_SMB/Python/ICS_SMB" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>

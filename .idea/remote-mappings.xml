@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteMappingsManager">
+    <list>
+      <list>
+        <remote-mappings server-id="python@ssh://pi@10.0.0.4:22/usr/bin/python">
+          <settings>
+            <list>
+              <mapping local-root="$PROJECT_DIR$" remote-root="/home/pi/Documents/Spyder3 Projects/ICS_SMB/Python/ICS_SMB" />
+            </list>
+          </settings>
+        </remote-mappings>
+        <remote-mappings server-id="python@ssh://pi@10.0.0.4:22/usr/bin/python3" />
+      </list>
+    </list>
+  </component>
+</project>
