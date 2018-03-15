@@ -1,30 +1,36 @@
+import re
 
 def lo8(x):
-	return x & 0xff
+    return x & 0xff
+
 
 def hi8(x):
-	return x >> 8
+    return x >> 8
+
 
 def lo4(x):
-	return x & 0xf
+    return x & 0xf
+
 
 def hi4(x):
-	return x >>4
+    return x >> 4
 
-def _BV(bit):
-	return 1 << bit
-	
-def ReverseBits(byte):
+
+def _bv(bit):
+    return 1 << bit
+
+
+def reverse_bits(byte):
     byte = ((byte & 0xF0) >> 4) | ((byte & 0x0F) << 4)
     byte = ((byte & 0xCC) >> 2) | ((byte & 0x33) << 2)
     byte = ((byte & 0xAA) >> 1) | ((byte & 0x55) << 1)
     return byte
 
-def BytesToHex(Bytes): 
+
+def bytes_to_hex(nbytes):
     """
-    Print bytes
+    :param nbytes
     This script will print out a byte array in a human readable format 
     (hexadecimal). This is often useful during debugging. 
     """
-    #return ''.join(["0x%02X " % x for x in Bytes]).strip() #end def
-    return ('[{}]'.format(', '.join(hex(x) for x in Bytes)))
+    return '[{}]'.format(', '.join(hex(x) for x in nbytes))

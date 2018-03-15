@@ -1,4 +1,3 @@
-
 """
 	- Action Commands
 
@@ -68,7 +67,3 @@
 	?           |  i          | Heater# | 1 to 2   | Amps      |  0 to  .3 | Read Heater Current
 	?           |  j          | voltage | 0 to 1.25| n/a       | n/a       | Read Low Voltage Threshold
 """
-from xml.dom import minidom
-
-import Gbl
-

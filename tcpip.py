@@ -1,5 +1,6 @@
 import socket
 import threading
+import Gbl
 
 
 class ThreadedSocketServer(object):
@@ -15,9 +16,9 @@ class ThreadedSocketServer(object):
         while True:
             client, address = self.sock.accept()
             client.settimeout(60)
-            threading.Thread(target=self.listenToClient, args=(client, address)).start()
+            threading.Thread(target=self.listen_to_client, args=(client, address)).start()
 
-    def listenToClient(self, client, address):
+    def listen_to_client(self, client, address):
         size = 1024
         while True:
             try:
@@ -26,6 +27,7 @@ class ThreadedSocketServer(object):
                     # Set the response to echo back the recieved data
                     response = data
                     client.send(response)
+                    Gbl.cmd_queue.put(response)
                 else:
                     raise ConnectionError('Client disconnected')
             except:

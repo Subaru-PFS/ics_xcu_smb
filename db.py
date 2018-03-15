@@ -1,11 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
 import sqlite3
 import sys
 import Gbl
-
-con = None
 
 
 def get_sqlite_ver():
@@ -41,7 +38,6 @@ def get_next_cmd_from_queue(conn):
     """
     Query tasks by priority
     :param conn: the Connection object
-    :param priority:
     :return:
     """
     cur = conn.cursor()
@@ -52,27 +48,22 @@ def get_next_cmd_from_queue(conn):
     rows = cur.fetchall()
 
     for row in rows:
-        if row == None:
+        if row is None:
             print("no records found")
         else:
             print(row)
 
 
-def PopulateCmdList(conn):
+def populate_cmd_list():
+    conn = create_connection('smb.db')
     cur = conn.cursor()
     cur.execute("SELECT * FROM tblSmbCmds")
 
     Gbl.cmdlist = cur.fetchall()
-
+    conn.close()
     for cmd in Gbl.cmdlist:
-        if cmd == None:
+        if cmd is None:
             print("no records found")
         else:
-            #print(cmd[10])
-            print(cmd)
-
-
-if __name__ == "__main__":
-    con = create_connection('smb.db')
-    get_next_cmd_from_queue(con)
-    PopulateCmdList(con)
+            pass
+            # print(cmd)
