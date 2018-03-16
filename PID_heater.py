@@ -6,11 +6,12 @@ Created on Wed Jan 24 12:49:52 2018
 @author: pi
 """
 import db
-
+from DAC8775 import DAC
 
 class PidHeater(object):
     """ pid_heater class """
-    def __init__(self, idx):
+    def __init__(self, idx, tlm_dict):
+        dac=DAC(idx)
         self._heater_num = idx + 1
         self._heater_p_term = 1
         self._heater_i_term = 1
@@ -19,8 +20,9 @@ class PidHeater(object):
         self._heater_mode = 0
         self._heater_ctrl_sensor = 0
         self._heater_set_pt = 0.0
-        # self.heater_reset()
+        self.tlm_dict = tlm_dict
         self.get_heater_params()
+        dac.dac_initialize()
 
     @property
     def heater_p_term(self):
@@ -111,22 +113,9 @@ class PidHeater(object):
                 print("no records found")
             else:
                 self._heater_p_term = param[1]
-                # print("P = %2.3f " % self._heater_p_term)
-
                 self._heater_i_term = param[2]
-                # print("I = %2.3f " % self._heater_i_term)
-
                 self._heater_d_term = param[3]
-                # print("D = %2.3f " % self._heater_d_term)
-
                 self._heater_set_pt = param[4]
-                # print("Set Point = %2.3f " % self._heater_set_pt)
-
                 self._heater_ctrl_sensor = param[5]
-                # print("Control Sensor = %d " % self._heater_ctrl_sensor)
-
                 self._heater_mode = param[6]
-                # print("Heater Mode = %d " % self._heater_mode)
-
                 self._heater_percent = param[7]
-                # print("Heater Percent = %2.3f" % self._heater_percent)

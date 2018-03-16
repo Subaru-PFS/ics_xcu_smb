@@ -1,61 +1,108 @@
-""" Main DMB Module """
-import spidev
+#!/usr/bin/env python3
 import sys
-import ADC
-import GUI
-import Gbl
-import SMB_Cmd_handler
-import tcpip
-import multiprocessing
-import logging
+import natsort
+from PyQt4 import QtCore, QtGui
+import SmbMainGui
+from tasks_loop import DoTasks
 import db
-import threading
-from queue import Queue
-
-""" Serial Periphreal Interface """
-Gbl.spi0 = spidev.SpiDev()
-
-
-def spi_init():
-    """Initialize the spi bus """
-    exit_code = Gbl.spi0.open(0, 0)
-    print(exit_code)
-    Gbl.spi0.max_speed_hz = 122000
-    Gbl.spi0.mode = 0b11
-    Gbl.spi0.bits_per_word = 8
-    Gbl.spi0.threewire = False
-    Gbl.cmd_queue=Queue()
+import Gbl
+import ADC
+from PID_heater import PidHeater
+import RPi.GPIO as GPIO
 
 
-def system_init():
-    """ init system """
+def main():
 
-    spi_init()
-    objs = [ADC.ADC(i) for i in range(1)]
-    for obj in objs:
-        Gbl.adc.append(obj)
+    tlm = Gbl.telemetry
+
+    """ Create DAC Objects"""
+    heater = [PidHeater(i, tlm) for i in range(1)]
+
+    """ Create ADC Objects"""
+    adc = [ADC.ADC(i, tlm) for i in range(2)]
+
+    # Get data, service PID etc.
+    t2 = DoTasks(tlm, adc)
+    t2.start()
+
+    app = QtGui.QApplication(sys.argv)
+    main_window = MainWindow()
+    main_window.show()
+    app.exec_()
+    t2.join()
 
 
-def main(args=None):
-    """The main routine."""
-    if args is None:
-        args = sys.argv[1:]
+class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
 
-    con=db.create_connection('smb.db')
-    db.PopulateCmdList(con)
+    # q_cmds = Queue(maxsize=100)
+    tlm = Gbl.telemetry
+    # spi_bus.system_init(tlm)
 
-    system_init()
-    # Gbl.app = GUI.QApplication(sys.argv)
-    # ex = GUI.App()
-    # sys.exit(Gbl.app.exec_())
+    def __init__(self, parent=None):
+        super(MainWindow, self).__init__(parent)
+        self.setupUi(self)
+        self.gui_delegates()
+        db.populate_cmd_list()
 
-    logging.basicConfig(level=logging.DEBUG)
-    #server = tcpip.Server("10.0.0.4", 1024)
+    def gui_delegates(self):
+        self.connect(self.btnReadAllTemps, QtCore.SIGNAL("released()"), self.__read_adc_temps)
+        self.connect(self.btnReadAdcCounts, QtCore.SIGNAL("released()"), self.__read_adc_counts)
+        self.connect(self.btnReadSenorVolts, QtCore.SIGNAL("released()"), self.__read_sns_volts)
+        self.connect(self.btnReadSensorResistances, QtCore.SIGNAL("released()"), self.__read_sns_ohms)
+        self.connect(self.btnReadHumidity, QtCore.SIGNAL("released()"), self.__read_humidity)
+        self.connect(self.btnRadRefVolts, QtCore.SIGNAL("released()"), self.__read_adc_ref_volts)
+        self.connect(self.btnReadAdcChipTemps, QtCore.SIGNAL("released()"), self.__read_adc_chip_temps)
 
-    threads = []
-    t=threading.Thread(target=tcpip.ThreadedSocketServer.listenToClient())
-    threads.append(t)
-    t.start()
+    def __read_adc_temps(self):
+        self.txtDisplay.clear()
+        for key, value in natsort.natsorted(self.tlm.items()):
+            if 'rtd' in key:
+                buf = '{:s} = {:3.3f}K'.format(key, value)
+                self.txtDisplay.append(buf)
+
+    def __read_adc_chip_temps(self):
+        self.txtDisplay.clear()
+        for key, value in natsort.natsorted(self.tlm.items()):
+            if 'adc_int_temp' in key:
+                buf = '{:s} = {:3.3f}K'.format(key, value)
+                self.txtDisplay.append(buf)
+
+    def __read_adc_ref_volts(self):
+        self.txtDisplay.clear()
+        for key, value in natsort.natsorted(self.tlm.items()):
+            if 'adc_ref_volt' in key:
+                buf = '{:s} = {:3.4f}V'.format(key, value)
+                self.txtDisplay.append(buf)
+
+    def __read_adc_counts(self):
+        self.txtDisplay.clear()
+        for key, value in natsort.natsorted(self.tlm.items()):
+            if 'adc_counts' in key:
+                buf = '{:s} = {:10.0f}'.format(key, value)
+                self.txtDisplay.append(buf)
+
+    def __read_sns_volts(self):
+        self.txtDisplay.clear()
+        for key, value in natsort.natsorted(self.tlm.items()):
+            if 'adc_sns_volts' in key:
+                buf = '{:s} = {:3.6f}V'.format(key, value)
+                self.txtDisplay.append(buf)
+
+    def __read_sns_ohms(self):
+        self.txtDisplay.clear()
+        for key, value in natsort.natsorted(self.tlm.items()):
+            if 'adc_sns_ohms' in key:
+                buf = '{:s} = {:3.3f}ohms'.format(key, value)
+                self.txtDisplay.append(buf)
+
+    def __read_humidity(self):
+        self.txtDisplay.clear()
+        for key, value in natsort.natsorted(self.tlm.items()):
+            if 'humidity' in key:
+                buf = '{:s} = {:3.1f}%'.format(key, value)
+                self.txtDisplay.append(buf)
+
+
 
 
 if __name__ == "__main__":

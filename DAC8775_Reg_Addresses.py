@@ -31,32 +31,3 @@ def search_reg_address_from_name(name):
 
     return -1
 
-"""
-@dictionary GPIO Pin Numbers
-@Maps DAC singals to GPIO PINS.
-"""
-gpio = {
-    "SDA_0": 2,
-    "SCL_0": 3,
-    "GPIO4": 4,
-    "nLDAC": 6,
-    "nADC_CS1": 7,
-    "nADC_CS0": 8,
-    "SPI0_MISO": 9,
-    "SPI0_MOSI": 10,
-    "SPI0_SCLK": 11,
-    "DAC_CLR": 12,
-    "nALARM": 13,
-    "nDAC_CS": 16,
-    "GPIO17": 17,
-    "GPIO18": 18,
-    "SPI1 MOSI": 20,
-    "SPI1 SCLK": 21,
-    "GPIO22": 22,
-    "GPIO23": 23,
-    "GPIO24": 24,
-    "GPIO25": 25,
-    "nRESET": 26,
-    "GPIO27": 27,
-
-}

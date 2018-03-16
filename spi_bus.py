@@ -3,7 +3,7 @@ import spidev
 
 class RPi3Spi(spidev.SpiDev):
 
-    def __init__(self, spi_id, cs_id, mode=3, max_speed_hz= 97600, parent=None):
+    def __init__(self, spi_id, cs_id, mode=3, max_speed_hz = 97600, parent=None):
         super().__init__(spi_id, cs_id)
         self.spi_id = spi_id
         self.cs_id = cs_id
