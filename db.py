@@ -20,20 +20,6 @@ def get_sqlite_ver():
             con.close()
 
 
-def create_connection(db_file):
-    """ create a database connection to the SQLite database
-        specified by the db_file
-    :param db_file: database file
-    :return: Connection object or None
-    """
-    try:
-        conn = sqlite3.connect(db_file)
-        return conn
-    except sqlite3.Error as e:
-        print(e)
-    return None
-
-
 def get_next_cmd_from_queue(conn):
     """
     Query tasks by priority
@@ -55,7 +41,7 @@ def get_next_cmd_from_queue(conn):
 
 
 def populate_cmd_list():
-    conn = create_connection('smb.db')
+    conn = sqlite3.connect("smb.db")
     cur = conn.cursor()
     cur.execute("SELECT * FROM tblSmbCmds")
 

@@ -8,9 +8,9 @@ RegAddrs = [
     {'name': "reset_config", 'addr': 0x02, 'value': 0x0000, 'per_chan': False, 'rw': 2},
     {'name': "select_dac", 'addr': 0x03, 'value': 0x0000, 'per_chan': False, 'rw': 2},
     {'name': "configuration_dac", 'addr': 0x04, 'value': 0x0000, 'per_chan': True, 'rw': 2},
-    {'name': "Select_DAC_register", 'addr': 0x05, 'value': 0x0000, 'per_chan': True, 'rw': 2},
+    {'name': "DAC_data", 'addr': 0x05, 'value': 0x0000, 'per_chan': True, 'rw': 2},
     {'name': "Select_Buck_Boost_converter", 'addr': 0x06, 'value': 0x0000, 'per_chan': False, 'rw': 2},
-    {'name': "configuration_Buck-Boost_converter", 'addr': 0x07, 'value': 0x0000, 'per_chan': True, 'rw': 2},
+    {'name': "configuration_Buck_Boost_converter", 'addr': 0x07, 'value': 0x0000, 'per_chan': True, 'rw': 2},
     {'name': "dac_channel_calibration_enable", 'addr': 0x08, 'value': 0x0000, 'per_chan': True, 'rw': 2},
     {'name': "dac_channel_gain_calibration", 'addr': 0x09, 'value': 0x0000, 'per_chan': True, 'rw': 2},
     {'name': "dac_channel_offset_calibration", 'addr': 0x0A, 'value': 0x0000, 'per_chan': True, 'rw': 2},
@@ -30,4 +30,3 @@ def search_reg_address_from_name(name):
             return a['addr']
 
     return -1
-

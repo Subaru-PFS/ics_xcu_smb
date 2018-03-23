@@ -1,12 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jan 24 12:49:52 2018
-
-@author: pi
-"""
-import db
 from DAC8775 import DAC
+import sqlite3
 
 class PidHeater(object):
     """ pid_heater class """
@@ -21,8 +14,7 @@ class PidHeater(object):
         self._heater_ctrl_sensor = 0
         self._heater_set_pt = 0.0
         self.tlm_dict = tlm_dict
-        self.get_heater_params()
-        dac.dac_initialize()
+        self.db_get_heater_params()
 
     @property
     def heater_p_term(self):
@@ -101,8 +93,9 @@ class PidHeater(object):
             raise ValueError("Heater percent value out of range")
         self._heater_percent = value
 
-    def get_heater_params(self):
-        con = db.create_connection('smb.db')
+    def db_get_heater_params(self):
+        con = sqlite3.connect("smb.db")
+        con.row_factory = sqlite3.Row
         cur = con.cursor()
         cur.execute("SELECT * FROM tblHtrParams WHERE PK_HTR_ID = " + str(self._heater_num))
 

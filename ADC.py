@@ -5,14 +5,13 @@ Created on Wed Jan 24 12:49:52 2018
 """
 import spi_bus
 import time
-import db
 import Gbl
 import AD7124_Reg_Addresses as RegAddrs
-import AD7124_Reg_bits as b
 from math import log
 import RPi.GPIO as GPIO
 from Sensor import sensor
 import ADC_helper_ftns as AdcHelper
+import sqlite3
 
 
 class ADC(object):
@@ -40,90 +39,16 @@ class ADC(object):
 
     # <editor-fold desc="*************** Properties*******************">
 
-    @property
-    def adc_excitation_mode(self):
-        return self._adc_excitation_mode
 
-    @adc_excitation_mode.setter
-    def adc_excitation_mode(self, value):
-        if value < 0 or value > 7:
-            raise ValueError("Excitation mode val out of range")
-        self._adc_excitation_mode = value
-
-    @property
-    def temp_unit(self):
-        return self._temp_unit
-
-    @temp_unit.setter
-    def temp_unit(self, value):
-        if value != "K" or value != "C" or value != "F":
-            raise ValueError("Invalid Unit Type")
-        self._temp_unit = value
-
-    @property
-    def sns_type(self):
-        return self._sns_type
-
-    @sns_type.setter
-    def sns_type(self, value):
-        if value != "DT670" or value != "RTD" or value != "RAW":
-            raise ValueError("Invalid Sensor Type")
-        self._sns_type = value
-
-    @property
-    def adc_filter(self):
-        return self._adc_filter
-
-    @adc_filter.setter
-    def adc_filter(self, value):
-        if value < 0 or value > 7:
-            raise ValueError("Filter val out of range")
-        self._adc_filter = value
-
-    @property
-    def therm_resistance(self):
-        return self._therm_resistance
-
-    @therm_resistance.setter
-    def therm_resistance(self, value):
-        if value < 1 or value > 10000:
-            raise ValueError("Thermister Resistance Out of Range")
-        self._therm_resistance = value
-
-    @property
-    def therm_beta(self):
-        return self._therm_beta
-
-    @therm_beta.setter
-    def therm_beta(self, value):
-        if value < 1 or value > 10000:
-            raise ValueError("Thermister Beta Out of Range")
-        self._therm_beta = value
-
-    @property
-    def adc_gain(self):
-        return self._adc_gain
-
-    @adc_gain.setter
-    def adc_gain(self, value):
-        if value < 1 or value > 128:
-            raise ValueError("Gain Out of Range")
-        self._adc_gain = value
-
-    @property
-    def ref_resistor(self):
-        return self._ref_resistor
-
-    @therm_resistance.setter
-    def therm_resistance(self, value):
-        if value < 0 or value > 10000:
-            raise ValueError("Ref Resistance Out of Range")
-        self._ref_resistor = value
     # </editor-fold>
 
+    # <editor-fold desc="************* AD7124 Public Methods ********************">
+
     def adc_initialize(self):
-        self.get_adc_params_from_db()
-        self.get_sensor_constants_from_db()
+        """ Read database parameters """
+        self.__get_adc_params_from_db()
+        self.__get_sensor_constants_from_db()
+
         """ SET GPIO numering mode to use GPIO designation, NOT pin numbers """
         GPIO.setmode(GPIO.BCM)
         """ Set SPI0 ADC CS pins high """
@@ -137,12 +62,34 @@ class ADC(object):
             print("BAD ADC specified")
         self.adc_reset()
         self.adc_config_channels()
-        self.adc_set_config_regs()
-        """ iout0_ch_name, iout1_ch_name, iout0_name, iout1_name, pdsw, gpio_ctrl1, gpio_ctrl2, gpio_dat1, gpio_dat2 """
-        self.set_io_reg1('IoutCh0', 'IoutCh5', 'Current500ua', 'Current500ua', False, True, False, False, False)
-        self.set_io_reg2(False, False, False, False, False, False, False, False)
-        self.config_error_register()
-        self.set_adc_control('ContinuousMode', 'FullPower', True, 'InternalClk')
+        self.adc_write_configurations()
+        """ Write IO Control 1 Register """
+        iout0_ch = RegAddrs.IoutCh['IoutCh0']
+        iout1_ch = RegAddrs.IoutCh['IoutCh5']
+        iout0 = RegAddrs.IoutCurrent['Current500ua']
+        iout1 = RegAddrs.IoutCurrent['Current500ua']
+        self.adc_write_io_control_1_reg(iout0_ch=iout0_ch, iout1_ch=iout1_ch, iout0=iout0,
+                                        iout1=iout1, pdsw=False, gpio_ctrl1=True, gpio_ctrl2=False,
+                                        gpio_dat1=False, gpio_dat2=False)
+
+        value = self.adc_read_io_control_1_reg()
+        print(value)
+
+        self.adc_write_io_control_2_reg(vbias0=False, vbias1=False, vbias2=False, vbias3=False, vbias4=False,
+                                        vbias5=False, vbias6=False, vbias7=False)
+        value = self.adc_read_io_control_2_reg()
+        print(value)
+
+        self.adc_write_error_en_reg()
+
+        mode = RegAddrs.OperatingMode['ContinuousMode']
+        power_mode = RegAddrs.PowerMode['FullPower']
+        clk_sel = RegAddrs.ClkSel['InternalClk']
+        self.adc_write_adc_control_reg(clk_sel=clk_sel, mode=mode, power_mode=power_mode,
+                                       ref_en=True, n_cs_en=True, data_status=False,
+                                       cont_read=False, dout_n_rdy_del=True)
+        value = self.adc_read_adc_control_reg()
+        print(value)
 
     def read_conversion_data(self):
 
@@ -150,9 +97,9 @@ class ADC(object):
         done = False
         while not done:
             channel = self.__wait_end_of_conversion(1)
-            data_32 = self.adc_read_register('Data', 3)
-            data_32.pop(0)
-            conversion = int.from_bytes(data_32, byteorder='big', signed=False)
+            data_24 = self.__adc_read_register('Data', 3)
+            data_24.pop(0)
+            conversion = int.from_bytes(data_24, byteorder='big', signed=False)
 
             # RTD
             if channel == 0:
@@ -230,129 +177,260 @@ class ADC(object):
     def adc_config_channels(self):
         print("Before Ch Programming")
         for i in range(7):
-            data_32 = self.adc_read_register("Channel_" + str(i), 2)
+            data_32 = self.__adc_read_register("Channel_" + str(i), 2)
             data_32.pop(0)
             print(data_32)
 
-        # Channel_num, configuration, +input, -input, Enabled?
-        self.set_channel('Channel_0', 0, 'AIN1Input', 'AIN4Input', True)  # CH0 - PT1000
-        self.set_channel('Channel_1', 1, 'AIN5Input', 'AIN6Input', True)  # CH1 - RT1 Thermistor
-        self.set_channel('Channel_2', 1, 'IOVDD6PInput', 'IOVDD6MInput', True)  # CH2 - IOVDD
-        self.set_channel('Channel_3', 1, 'AVDD6PInput', 'AVDD6MInput', True)  # CH2 - AVDD
-        self.set_channel('Channel_5', 3, 'TEMPInput', 'AVSSInput', True)  # CH5 - Internal Sensor
-        self.set_channel('Channel_6', 2, 'REFInput', 'AIN7Input', True)  # CH6 - Regerence In
+        """ CH0 - PT1000"""
+        input_p = RegAddrs.InputSel['AIN1Input']
+        input_n = RegAddrs.InputSel['AIN4Input']
+        self.adc_write_channel_regs(ch_name='Channel_0', ainp=input_p, ainm=input_n, setup=0, enable=True)
+        value = self.adc_read_channel_regs('Channel_0')
+        print(value)
+
+        """ CH1 - RT1 Thermistor """
+        input_p = RegAddrs.InputSel['AIN5Input']
+        input_n = RegAddrs.InputSel['AIN6Input']
+        self.adc_write_channel_regs(ch_name='Channel_1', ainp=input_p, ainm=input_n, setup=1, enable=True)
+        value = self.adc_read_channel_regs('Channel_1')
+        print(value)
+
+        """ CH2 - IOVDD """
+        input_p = RegAddrs.InputSel['IOVDD6PInput']
+        input_n = RegAddrs.InputSel['IOVDD6MInput']
+        self.adc_write_channel_regs(ch_name='Channel_2', ainp=input_p, ainm=input_n, setup=1, enable=True)
+        value = self.adc_read_channel_regs('Channel_2')
+        print(value)
+
+        """ CH2 - AVDD """
+        input_p = RegAddrs.InputSel['AVDD6PInput']
+        input_n = RegAddrs.InputSel['AVDD6MInput']
+        self.adc_write_channel_regs(ch_name='Channel_3', ainp=input_p, ainm=input_n, setup=1, enable=True)
+        value = self.adc_read_channel_regs('Channel_3')
+        print(value)
+
+        """ CH5 - Internal Sensor """
+        input_p = RegAddrs.InputSel['TEMPInput']
+        input_n = RegAddrs.InputSel['AVSSInput']
+        self.adc_write_channel_regs(ch_name='Channel_5', ainp=input_p, ainm=input_n, setup=3, enable=True)
+        value = self.adc_read_channel_regs('Channel_5')
+        print(value)
+
+        """ CH6 - Regerence In """
+        input_p = RegAddrs.InputSel['REFInput']
+        input_n = RegAddrs.InputSel['AIN7Input']
+        self.adc_write_channel_regs(ch_name='Channel_6', ainp=input_p, ainm=input_n, setup=2, enable=True)
+        value = self.adc_read_channel_regs('Channel_6')
+        print(value)
         print("After Ch Programming")
-        for i in range(7):
-            data_32 = self.adc_read_register("Channel_" + str(i), 2)
-            data_32.pop(0)
-            print(data_32)
 
-    def adc_set_config_regs(self):
-        """  cfg_num, Reference, Gain, Bipolar?, Burnoutcurrent """
+    def adc_write_configurations(self):
+        burnoutid = RegAddrs.BurnoutCurrent['BurnoutOff']
+
+        refid = RegAddrs.RefSel['RefIn1']
         gain = AdcHelper.select_gain_to_strings(self._adc_gain)
-        self.set_config('Config_0', 'RefIn1', gain, True, 'BurnoutOff')
-        self.set_config('Config_1', 'RefInternal', 'Pga1', False, 'BurnoutOff')
-        self.set_config('Config_2', 'RefAVdd', 'Pga1', False, 'BurnoutOff')
-        self.set_config('Config_3', 'RefInternal', 'Pga1', True, 'BurnoutOff')
+        pgaid = RegAddrs.PgaSel[gain]
+        self.adc_write_configuration_reg(cfgname='Config_0', pga=pgaid, ref_sel=refid, ain_bufm=True, ain_bufp=True,
+                                         ref_bufm=True, ref_bufp=True, burnout=burnoutid, bipolar=True)
+        value = self.adc_read_configuration_reg('Config_0')
+        print(value)
 
-    def get_adc_params_from_db(self):
-        con = db.create_connection('smb.db')
-        cur = con.cursor()
-        cur.execute("SELECT * FROM tblAdcParams WHERE PK_ADC_ID = " + str(self._sens_num))
+        pgaid = RegAddrs.PgaSel['Pga1']
+        refid = RegAddrs.RefSel['RefInternal']
+        self.adc_write_configuration_reg(cfgname='Config_1', pga=pgaid, ref_sel=refid, ain_bufm=True, ain_bufp=True,
+                                         ref_bufm=True, ref_bufp=True,  burnout=burnoutid, bipolar=False)
+        value = self.adc_read_configuration_reg('Config_1')
+        print(value)
 
-        params = cur.fetchall()
+        pgaid = RegAddrs.PgaSel['Pga1']
+        refid = RegAddrs.RefSel['RefAVdd']
+        self.adc_write_configuration_reg(cfgname='Config_2',  pga=pgaid, ref_sel=refid, ain_bufm=True, ain_bufp=True,
+                                         ref_bufm=True, ref_bufp=True, burnout=burnoutid, bipolar=False)
+        value = self.adc_read_configuration_reg('Config_2')
+        print(value)
 
-        for param in params:
-            if param is None:
-                print("no records found")
-            else:
-                current = param[1]
-                self._adc_excitation_mode = Gbl.ExcitationCurrents.get(current, 0)
-                # print("Current = %d Mode = %d " % (current, self._adc_excitation_mode))
-                self._temp_unit = param[2]
-                # print("Temperatue Uint = %s" % self._temp_unit)
-                self._sns_type = param[3]
-                # print("Sensor type = %s" % self._sns_type)
-                self._adc_filter = param[4]
-                # print("Filter = %d" % self._adc_filter)
-                self._therm_resistance = param[5]
-                # print("Thermister Resistance = %d" % self._therm_resistance)
-                self._therm_beta = param[6]
-                # print("Thermister Beta = %d" % self._therm_beta)
-                self._adc_gain = param[7]
-                # print("ADC Gain = %d" % self._adc_gain)
-                self._ref_resistor = param[8]
-                # print("ref resistor = %d" % self._ref_resistor)
+        pgaid = RegAddrs.PgaSel['Pga1']
+        refid = RegAddrs.RefSel['RefInternal']
+        burnoutid = RegAddrs.BurnoutCurrent['BurnoutOff']
+        self.adc_write_configuration_reg(cfgname='Config_3', pga=pgaid, ref_sel=refid, ain_bufm=True, ain_bufp=True,
+                                         ref_bufm=True, ref_bufp=True, burnout=burnoutid, bipolar=True)
+        value = self.adc_read_configuration_reg('Config_3')
+        print(value)
 
-    def set_io_reg1(self, iout0_ch_name, iout1_ch_name, iout0_name, iout1_name,
-                    pdsw, gpio_ctrl1, gpio_ctrl2, gpio_dat1, gpio_dat2):
+    def adc_write_io_control_1_reg(self, **kwargs):
+        reg_dict = self.__adc_retrieve_reg_bits_from_db('tblAdcIoControl1Reg')
+        write_bytes = self.__adc_getbytes_from_reg_bits(kwargs, reg_dict)
+        return self.__adc_write_register('IOCon1', write_bytes)
+
+    def adc_read_io_control_1_reg(self):
+        data_24 = self.__adc_read_register('IOCon1', 3)
+        data_24.pop(0)
+        value = int.from_bytes(data_24, byteorder='big', signed=False)
+        reg_dict = dict()
+        reg_dict['value'] = value
+        reg_dict['iout0_ch'] = value & 0x00000f
+        reg_dict['iout1_ch'] = (value >> 4) & 0x00000f
+        reg_dict['iout0'] = (value >> 8) & 0x000007
+        reg_dict['iout1'] = (value >> 11) & 0x000007
+        reg_dict['pdsw'] = (value >> 15) & 0x000001
+        reg_dict['gpio_ctrl1'] = (value >> 18) & 0x000001
+        reg_dict['gpio_ctrl2'] = (value >> 19) & 0x000001
+        reg_dict['gpio_dat1'] = (value >> 22) & 0x000001
+        reg_dict['gpio_dat2'] = (value >> 23) & 0x000001
+        return reg_dict
+
+    def adc_write_io_control_2_reg(self, **kwargs):
+        reg_dict = self.__adc_retrieve_reg_bits_from_db('tblAdcIoControl2Reg')
+        write_bytes = self.__adc_getbytes_from_reg_bits(kwargs, reg_dict)
+        return self.__adc_write_register('IOCon2', write_bytes)
+
+    def adc_read_io_control_2_reg(self):
+        data_24 = self.__adc_read_register('IOCon2', 2)
+        data_24.pop(0)
+        value = int.from_bytes(data_24, byteorder='big', signed=False)
+        reg_dict = dict()
+        reg_dict['value'] = value
+        reg_dict['vbias0'] = value & 0b0000000000000001
+        reg_dict['vbias1'] = value & 0b0000000000000010
+        reg_dict['vbias2'] = value & 0b0000000000010000
+        reg_dict['vbias3'] = value & 0b0000000000100000
+        reg_dict['vbias4'] = value & 0b0000010000000000
+        reg_dict['vbias5'] = value & 0b0000100000000000
+        reg_dict['vbias6'] = value & 0b0100000000000000
+        reg_dict['vbias7'] = value & 0b1000000000000000
+        return reg_dict
+
+    def adc_write_adc_control_reg(self, **kwargs):
+        reg_dict = self.__adc_retrieve_reg_bits_from_db('tblAdcAdcControlReg')
+        write_bytes = self.__adc_getbytes_from_reg_bits(kwargs, reg_dict)
+        return self.__adc_write_register('ADC_Control', write_bytes)
+
+    def adc_read_adc_control_reg(self):
+        data_24 = self.__adc_read_register('ADC_Control', 2)
+        data_24.pop(0)
+        value = int.from_bytes(data_24, byteorder='big', signed=False)
+        reg_dict = dict()
+        reg_dict['value'] = value
+        reg_dict['clk_sel'] = value & 0x0003
+        reg_dict['mode'] = (value >> 2) & 0x000F
+        reg_dict['power_mode'] = (value >> 6) & 0x0003
+        reg_dict['ref_en'] = (value >> 8) & 0x0001
+        reg_dict['cs_en'] = (value >> 9) & 0x0001
+        reg_dict['data_status'] = (value >> 10) & 0x0001
+        reg_dict['cont_read'] = (value >> 11) & 0x0001
+        reg_dict['dout_rdy_del'] = (value >> 12) & 0x0001
+        return reg_dict
+
+    def adc_write_configuration_reg(self, **kwargs):
+        reg_dict = self.__adc_retrieve_reg_bits_from_db('tblAdcConfigurationRegs')
+        write_bytes = self.__adc_getbytes_from_reg_bits(kwargs, reg_dict)
+        return self.__adc_write_register(kwargs['cfgname'], write_bytes)
+
+    def adc_read_configuration_reg(self, config_name):
+        data_24 = self.__adc_read_register(config_name, 2)
+        data_24.pop(0)
+        value = int.from_bytes(data_24, byteorder='big', signed=False)
+        reg_dict = dict()
+        reg_dict['value'] = value
+        reg_dict['PGA'] = value & 0x0007
+        reg_dict['ref_sel'] = (value >> 3) & 0x0003
+        reg_dict['ain_bufm'] = (value >> 5) & 0x0001
+        reg_dict['ain_bufp'] = (value >> 6) & 0x0001
+        reg_dict['ref_bufm'] = (value >> 7) & 0x0001
+        reg_dict['burnout'] = (value >> 9) & 0x0003
+        reg_dict['bipolar'] = (value >> 11) & 0x0001
+        return reg_dict
+
+    def enable_channel(self, ch_name, enable):
         """
-        :param iout0_ch_name:
-        :param iout1_ch_name:
-        :param iout0_name:
-        :param iout1_name:
-        :param pdsw:
-        :param gpio_ctrl1:
-        :param gpio_ctrl2:
-        :param gpio_dat1:
-        :param gpio_dat2:
-        :return:
+        :brief sets the AD7124 channel enable status
+        value is also stored in software register list of the device.
+        :param ch_name: uint8_t internal channel to select
+        :param enable: bool enable channel
+        :return: int esult from write operation.
         """
+        data_32 = self.__adc_read_register(ch_name, 3)
+        value = int.from_bytes(data_32, byteorder='big', signed=False)
+        if value < 0:
+            return value
+        if enable is True:
+            value |= b.AD7124_CH_MAP_REG_CH_ENABLE()
+        else:
+            value &= ~b.AD7124_CH_MAP_REG_CH_ENABLE()
+        return self.__adc_write_register(ch_name, value)
 
-        iout0_ch = RegAddrs.IoutCh[iout0_ch_name]
-        iout1_ch = RegAddrs.IoutCh[iout1_ch_name]
-        iout0 = RegAddrs.IoutCurrent[iout0_name]
-        iout1 = RegAddrs.IoutCurrent[iout1_name]
+    def adc_write_channel_regs(self, **kwargs):
+        regid = RegAddrs.search_reg_address_from_name(kwargs['ch_name'])
+        if regid > 0:
+            reg_dict = self.__adc_retrieve_reg_bits_from_db('tblAdcChannelRegs')
+            write_bytes = self.__adc_getbytes_from_reg_bits(kwargs, reg_dict)
+            return self.__adc_write_register(kwargs['ch_name'], write_bytes)
+        else:
+            return -1
 
-        value = (b.AD7124_IO_CTRL1_REG_IOUT1(iout1) |
-                 b.AD7124_IO_CTRL1_REG_IOUT0(iout0) |
-                 b.AD7124_IO_CTRL1_REG_IOUT_CH1(iout1_ch) |
-                 b.AD7124_IO_CTRL1_REG_IOUT_CH0(iout0_ch) |
-                 (b.AD7124_IO_CTRL1_REG_GPIO_DAT1() if gpio_dat1 else 0) |
-                 (b.AD7124_IO_CTRL1_REG_GPIO_DAT2() if gpio_dat2 else 0) |
-                 (b.AD7124_IO_CTRL1_REG_GPIO_CTRL1() if gpio_ctrl1 else 0) |
-                 (b.AD7124_IO_CTRL1_REG_GPIO_CTRL2() if gpio_ctrl2 else 0) |
-                 (b.AD7124_IO_CTRL1_REG_PDSW() if pdsw else 0))
+    def adc_read_channel_regs(self, ch_name):
+        data_24 = self.__adc_read_register(ch_name, 2)
+        data_24.pop(0)
+        value = int.from_bytes(data_24, byteorder='big', signed=False)
+        reg_dict = dict()
+        reg_dict['value'] = value
+        reg_dict['ainm'] = value & 0x000f
+        reg_dict['ainp'] = (value >> 4) & 0x000f
+        reg_dict['setup'] = value >> 12 & 0x000f
+        reg_dict['enable'] = value >> 15 & 0x0001
+        return reg_dict
 
-        return self.adc_write_register('IOCon1', value)
+    def adc_read_error_register(self):
+        data_24 = self.__adc_read_register('Error', 3)
+        data_24.pop(0)
+        value = int.from_bytes(data_24, byteorder='big', signed=False)
+        reg_dict = dict()
+        reg_dict['value'] = value
+        reg_dict['rom_crc_err'] = value & 0x0001
+        reg_dict['mm_crc_err'] = (value >> 1) & 0x0001
+        reg_dict['spi_crc_err'] = (value >> 2) & 0x0001
+        reg_dict['spi_write_err'] = (value >> 3) & 0x0001
+        reg_dict['spi_read_err'] = (value >> 4) & 0x0001
+        reg_dict['spi_clk_cnt_err'] = (value >> 5) & 0x0001
+        reg_dict['spi_ignore_err'] = (value >> 6) & 0x0001
+        reg_dict['aldo_psm_error'] = (value >> 7) & 0x0001
+        reg_dict['dldo_psm_err'] = (value >> 9) & 0x0001
+        reg_dict['ref_det_err'] = (value >> 11) & 0x0001
+        reg_dict['ainm_uv_err'] = (value >> 12) & 0x0001
+        reg_dict['ainm_ov_err'] = (value >> 13) & 0x0001
+        reg_dict['ainp_uv_err'] = (value >> 14) & 0x0001
+        reg_dict['ainp_ov_err'] = (value >> 15) & 0x0001
+        reg_dict['adc_sat_err'] = (value >> 16) & 0x0001
+        reg_dict['adc_conv_err'] = (value >> 17) & 0x0001
+        reg_dict['adc_cal_err'] = (value >> 18) & 0x0001
+        reg_dict['ldo_cap_err'] = (value >> 19) & 0x0001
 
-    def set_io_reg2(self, vbias0, vbias1, vbias2, vbias3, vbias4, vbias5, vbias6, vbias7):
+        return reg_dict
 
-        value = ((b.AD7124_IO_CTRL2_REG_GPIO_VBIAS7() if vbias0 else 0) |
-                 (b.AD7124_IO_CTRL2_REG_GPIO_VBIAS6() if vbias1 else 0) |
-                 (b.AD7124_IO_CTRL2_REG_GPIO_VBIAS5() if vbias2 else 0) |
-                 (b.AD7124_IO_CTRL2_REG_GPIO_VBIAS4() if vbias3 else 0) |
-                 (b.AD7124_IO_CTRL2_REG_GPIO_VBIAS3() if vbias4 else 0) |
-                 (b.AD7124_IO_CTRL2_REG_GPIO_VBIAS2() if vbias5 else 0) |
-                 (b.AD7124_IO_CTRL2_REG_GPIO_VBIAS1() if vbias6 else 0) |
-                 (b.AD7124_IO_CTRL2_REG_GPIO_VBIAS0() if vbias7 else 0))
+    def adc_read_status_register(self):
+        data_8 = self.__adc_read_register('Status', 1)
+        data_8.pop(0)
+        value = int.from_bytes(data_8, byteorder='big', signed=False)
+        reg_dict = dict()
+        reg_dict['value'] = value
+        reg_dict['ch_active'] = value & 0x0f
+        reg_dict['por_flag'] = (value >> 4) & 0x01
+        reg_dict['err'] = (value >> 6) & 0x01
+        reg_dict['n_rdy'] = (value >> 7) & 0x01
+        return reg_dict
 
-        return self.adc_write_register('IOCon2', value)
+    def adc_write_error_en_reg(self):
+        self.__adc_write_register('Error_En', 0x7F018)
 
-    def set_config_filter(self, filter_name, filter_type_name, postfilter_name, filt_datarate_sel, rej60, single):
-        """
-        :brief Sets the AD7124 Filter
-        :param filter_name: string Configuration Register to use
-        :param filter_type_name: string Filter Type
-        :param postfilter_name: string Post Filter Type
-        :param filt_datarate_sel: uint16_t
-        :param rej60: bool
-        :param single: bool
-        :return: int
-        """
+    def adc_write_filter_reg(self, **kwargs):
+        cfilter = RegAddrs.FilterType[kwargs['filter_type_name']]
+        postfilter = RegAddrs.PostFilterType[kwargs['postfilter_name']]
 
-        cfilter = RegAddrs.FilterType[filter_type_name]
-        postfilter = RegAddrs.PostFilterType[postfilter_name]
+        reg_dict = self.__adc_retrieve_reg_bits_from_db('tblAdcFilterRegs')
+        write_bytes = self.__adc_getbytes_from_reg_bits(kwargs, reg_dict)
+        return self.__adc_write_register(kwargs['filter_name'], write_bytes)
 
-        value = (b.AD7124_FILT_REG_FILTER(cfilter) |
-                 b.AD7124_FILT_REG_POST_FILTER(postfilter) |
-                 b.AD7124_FILT_REG_FS(filt_datarate_sel) |
-                 (b.AD7124_FILT_REG_REJ60() if rej60 else 0) |
-                 (b.AD7124_FILT_REG_SINGLE_CYCLE() if single else 0))
-
-        return self.adc_write_register(filter_name, value)
-
-    def set_config_gain(self, gain_ch_name, gain):
+    def adc_write_gain_reg(self, gain_ch_name, gain):
         """
         :brief Sets the AD7124 Filter
         :param gain_ch_name: string gain_ch_name e.g. "Gain_0"
@@ -360,47 +438,37 @@ class ADC(object):
         :return: int result from write operation.
         """
 
-        return self.adc_write_register(gain_ch_name, gain)
+        return self.__adc_write_register(gain_ch_name, gain)
 
-    def get_sensor_constants_from_db(self):
-        con = db.create_connection('smb.db')
-        cur = con.cursor()
-        sql = "SELECT * FROM tblPolynomialCostants WHERE Device = " + "'" + self._sns_type + "'" + " LIMIT 1"
-        cur.execute(sql)
-        rows = cur.fetchall()
+    def adc_reset(self):
+        """ Reset the ADC """
+        wrbuf = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+        self.spi_obj.writebytes(wrbuf)
+        self.__adc_write_register('ADC_Control', 0x13D0)
 
-        for row in rows:
-            if row is None:
-                print("no records found")
-            else:
-                self.sns.sensor_type = row[0]
-                self.sns.const_0 = row[1]
-                self.sns.const_1 = row[2]
-                self.sns.const_2 = row[3]
-                self.sns.const_3 = row[4]
-                self.sns.const_4 = row[5]
-                self.sns.const_5 = row[6]
-                self.sns.const_6 = row[7]
-                self.sns.const_7 = row[8]
+    def adc_read_id(self):
+        data_32 = self.__adc_read_register('ID', 1)
+        data_32.pop(0)
+        print(data_32)
+        chipid = int.from_bytes(data_32, byteorder='big', signed=False)
 
-        con.close()
+        print("ID = %d" % chipid)
 
+    # </editor-fold>
+
+    # <editor-fold desc="************* AD7124 Private Methods ********************">
     def __wait_end_of_conversion(self,  timeout_s):
         starttime = time.time()
         nready = 1
-        data_8 = 0x00
-        while nready > 0:
-            data_8 = self.read_status_register()
-            nready = data_8 & b.AD7124_STATUS_REG_RDY()
+        while nready is 1:
+            data_8 = self.adc_read_status_register()
+            nready = data_8['n_rdy']
             currtime = time.time()
-
             if currtime - starttime > timeout_s:
                 print("timeout %f" % (currtime - starttime))
                 return -1
-        data_8 &= 0x0f
-        return data_8  # return current channel#
+        return data_8['ch_active']  # return current channel#
 
-    # <editor-fold desc="************* AD7124 Methods ********************">
     def __read_reg(self, regid, byte_len):
         """
          * @brief Reads a register of the AD7124
@@ -427,7 +495,7 @@ class ADC(object):
             bytelist.append(val)
         self.spi_obj.xfer2(bytelist)
 
-    def adc_read_register(self, reg_name, byte_len):
+    def __adc_read_register(self, reg_name, byte_len):
         """
         * @brief Reads and returns the value of a device register. The read
         * value is also stored in software register list of the device.
@@ -440,7 +508,7 @@ class ADC(object):
         resp = self.__read_reg(regid, byte_len)
         return resp
 
-    def adc_write_register(self, reg_name, value):
+    def __adc_write_register(self, reg_name, value):
         """
         * @brief Writes the specified value to a device register. The
         *        value to be written is also stored in the software
@@ -457,119 +525,92 @@ class ADC(object):
         rbytes = value.to_bytes((value.bit_length() + 7) // 8, byteorder='big')
         self.__write_reg(regid, rbytes)
 
-    def set_adc_control(self, op_modename, power_modename, ref_en, clk_selname):
-        """
-        :brief Sets the AD7124 Control Register
-        Buffering is automatically configured
-        :param op_modename: string Operationg Mode
-        :param power_modename: string Power Mode
-        :param ref_en: bool Enable reference
-        :param clk_selname: uint8_t clock select
-        :return: int result from write operation.
-        """
-        op_mode = RegAddrs.OperatingMode[op_modename]
-        power_mode = RegAddrs.PowerMode[power_modename]
-        clk_sel = RegAddrs.ClkSel[clk_selname]
+    def __get_adc_params_from_db(self):
+        con = sqlite3.connect("smb.db")
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+        cur.execute("SELECT * FROM tblAdcParams WHERE PK_ADC_ID = " + str(self._sens_num))
+        params = cur.fetchall()
+        con.close()
+        for param in params:
+            if param is None:
+                print("no records found")
+            else:
+                current = param[1]
+                self._adc_excitation_mode = Gbl.ExcitationCurrents.get(current, 0)
+                # print("Current = %d Mode = %d " % (current, self._adc_excitation_mode))
+                self._temp_unit = param[2]
+                # print("Temperatue Uint = %s" % self._temp_unit)
+                self._sns_type = param[3]
+                # print("Sensor type = %s" % self._sns_type)
+                self._adc_filter = param[4]
+                # print("Filter = %d" % self._adc_filter)
+                self._therm_resistance = param[5]
+                # print("Thermister Resistance = %d" % self._therm_resistance)
+                self._therm_beta = param[6]
+                # print("Thermister Beta = %d" % self._therm_beta)
+                self._adc_gain = param[7]
+                # print("ADC Gain = %d" % self._adc_gain)
+                self._ref_resistor = param[8]
+                # print("ref resistor = %d" % self._ref_resistor)
 
-        value = (b.AD7124_ADC_CTRL_REG_MODE(op_mode) |
-                 b.AD7124_ADC_CTRL_REG_POWER_MODE(power_mode) |
-                 b.AD7124_ADC_CTRL_REG_CLK_SEL(clk_sel) |
-                 (b.AD7124_ADC_CTRL_REG_REF_EN() if ref_en else 0) |
-                 b.AD7124_ADC_CTRL_REG_DOUT_RDY_DEL())
+    def __get_sensor_constants_from_db(self):
+        con = sqlite3.connect("smb.db")
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+        sql = "SELECT * FROM tblPolynomialCostants WHERE Device = " + "'" + self._sns_type + "'" + " LIMIT 1"
+        cur.execute(sql)
+        rows = cur.fetchall()
 
-        return self.adc_write_register('ADC_Control', value)
+        for row in rows:
+            if row is None:
+                print("no records found")
+            else:
+                self.sns.sensor_type = row[0]
+                self.sns.const_0 = row[1]
+                self.sns.const_1 = row[2]
+                self.sns.const_2 = row[3]
+                self.sns.const_3 = row[4]
+                self.sns.const_4 = row[5]
+                self.sns.const_5 = row[6]
+                self.sns.const_6 = row[7]
+                self.sns.const_7 = row[8]
 
-    def adc_reset(self):
-        """ Reset the ADC """
-        wrbuf = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
-        self.spi_obj.writebytes(wrbuf)
-        self.adc_write_register('ADC_Control', 0x13D0)
+        con.close()
 
-    def adc_read_id(self):
-        data_32 = self.adc_read_register('ID', 1)
-        data_32.pop(0)
-        print(data_32)
-        chipid = int.from_bytes(data_32, byteorder='big', signed=False)
+    def __adc_retrieve_reg_bits_from_db(self, tblname):
+        # Builds a dict of dicts from garden sqlite db
+        reg_dict = {}
+        conn = sqlite3.connect("smb.db")
+        # Need to allow write permissions by others
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        qry = 'select * from ' + tblname + ' as data ORDER BY SHIFT'
+        c.execute(qry)
+        tuple_list = c.fetchall()
+        conn.close()
+        # Building dict from table rows
+        for item in tuple_list:
+            reg_dict[item] = {
+                "PARENT_REG": item[0],
+                "NAME": item[1],
+                "MASK": item[2],
+                "SHIFT": item[3],
+                "VALUE": item[4]
+            }
 
-        print("ID = %d" % chipid)
+        return reg_dict
 
-    def set_config(self, cfgname, refname, pganame, bipolar, burnoutname):
-        """
-        :brief Sets the AD7124 Configuration Register
-        :param cfgname: string configuration register name
-        :param refname: string reference to use for conversion
-        :param pganame: uint8_t Pga Select
-        :param bipolar: bool bipolar:True, unipolaer:False
-        :param burnoutname: uint8_t burnout current to use
-        :return: int result from write operation.
-        """
-        refid = RegAddrs.RefSel[refname]
-        pgaid = RegAddrs.PgaSel[pganame]
-        burnoutid = RegAddrs.BurnoutCurrent[burnoutname]
+    def __adc_getbytes_from_reg_bits(self, kwargs, reg_dict):
+        write_bytes = 0x0000
+        for kword in kwargs:
+            for item in reg_dict:
+                if item["NAME"] == kword:
+                    name = item["NAME"]
+                    value = int(kwargs[name])
+                    shift = item["SHIFT"]
+                    mask = item["MASK"]
+                    write_bytes = write_bytes | ((value & mask) << shift)
+        return write_bytes
 
-        value = (b.AD7124_CFG_REG_REF_SEL(refid) |
-                 b.AD7124_CFG_REG_PGA(pgaid) |
-                 b.AD7124_CFG_REG_BURNOUT(burnoutid) |
-                 b.AD7124_CFG_REG_REF_BUFP() | b.AD7124_CFG_REG_REF_BUFM() |
-                 b.AD7124_CFG_REG_AIN_BUFP() | b.AD7124_CFG_REG_AINN_BUFM() |
-                 (b.AD7124_CFG_REG_BIPOLAR() if bipolar else 0))
-
-        return self.adc_write_register(cfgname, value)
-
-    def enable_channel(self, ch_name, enable):
-        """
-        :brief sets the AD7124 channel enable status
-        value is also stored in software register list of the device.
-        :param ch_name: uint8_t internal channel to select
-        :param enable: bool enable channel
-        :return: int esult from write operation.
-        """
-        data_32 = self.adc_read_register(ch_name, 3)
-        value = int.from_bytes(data_32, byteorder='big', signed=False)
-        if value < 0:
-            return value
-        if enable is True:
-            value |= b.AD7124_CH_MAP_REG_CH_ENABLE()
-        else:
-            value &= ~b.AD7124_CH_MAP_REG_CH_ENABLE()
-        return self.adc_write_register(ch_name, value)
-
-    def set_channel(self, ch_name, cfg, ainp, ainm, enable):
-        """
-        :brief Sets the AD7124 Internal Channel
-        :param ch_name: string internal channel to select
-        :param cfg: uint8_t configuration register to use
-        :param ainp: string Analog input plus
-        :param ainm: string Analog input minus
-        :param enable: bool enable channel
-        :return: int result from write operation.
-        """
-        regid = RegAddrs.search_reg_address_from_name(ch_name)
-        if regid > 0:
-            input_p = RegAddrs.InputSel[ainp]
-            input_n = RegAddrs.InputSel[ainm]
-
-            value = (b.AD7124_CH_MAP_REG_SETUP(cfg) |
-                     b.AD7124_CH_MAP_REG_AINP(input_p) |
-                     b.AD7124_CH_MAP_REG_AINM(input_n) |
-                     (b.AD7124_CH_MAP_REG_CH_ENABLE() if enable else 0))
-
-            return self.adc_write_register(ch_name, value)
-        else:
-            return -1
-
-    def read_error_register(self):
-        data_32 = self.adc_read_register('Error', 3)
-        data_32.pop(0)
-        value = int.from_bytes(data_32, byteorder='big', signed=False)
-        return value
-
-    def read_status_register(self):
-        data_8 = self.adc_read_register('Status', 1)
-        data_8.pop(0)
-        value = int.from_bytes(data_8, byteorder='big', signed=False)
-        return value
-
-    def config_error_register(self):
-        self.adc_write_register('Error_En', 0x7F018)
     # </editor-fold>

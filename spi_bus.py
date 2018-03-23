@@ -13,9 +13,6 @@ class RPi3Spi(spidev.SpiDev):
         self.spi_initialize()
 
     def spi_initialize(self):
-
-        # self.max_speed_hz = 976000
-        # self.mode = 3
         self.no_cs = False
         self.bits_per_word = 8
         self.threewire = False

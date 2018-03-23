@@ -1,5 +1,7 @@
 # Function to convert number into string
 # Switcher is dictionary data type here
+
+
 def select_gain_to_strings(argument):
     switcher = {
         1: "Pga1",
@@ -12,6 +14,7 @@ def select_gain_to_strings(argument):
         128: "Pga128"
     }
     return switcher.get(argument, "Pga1")
+
 
 def to_voltage(value, gain, vref, bipolar):
     voltage = value
