@@ -1,47 +1,48 @@
 import socket
 import threading
-import Gbl
+from SMB_Cmd_handler import SmbCmd
 
 
-class ThreadedSocketServer(object):
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind((self.host, self.port))
+class TcpServer(threading.Thread):
+    def __init__(self, qcommand, qtransmit):
+        self.qcmd = qcommand
+        self.qxmit = qtransmit
+        threading.Thread.__init__(self)
 
-    def listen(self):
-        self.sock.listen(5)
+    def run(self):
+        HOST = ''  # Symbolic name meaning all available interfaces
+        PORT = 1024  # Arbitrary non-privileged port
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((HOST, PORT))
+        s.listen(1)
+        conn, addr = s.accept()
+        smb_cmd = SmbCmd()
         while True:
-            client, address = self.sock.accept()
-            client.settimeout(60)
-            threading.Thread(target=self.listen_to_client, args=(client, address)).start()
+            """ see if data recieved via TCP """
+            data = conn.recv(1024)
+            """ Convert byte data to string """
+            strdata = "".join(map(chr, data))
 
-    def listen_to_client(self, client, address):
-        size = 1024
-        while True:
-            try:
-                data = client.recv(size)
-                if data:
-                    # Set the response to echo back the recieved data
-                    response = data
-                    client.send(response)
-                    Gbl.cmd_queue.put(response)
-                else:
-                    raise ConnectionError('Client disconnected')
-            except:
-                client.close()
-                return False
+            if data:
+                """ add recived cmd to the transmit queue to be echoed back """
+                if self.qxmit.empty() is not True:
+                    output = strdata.rstrip() + '\n'
+                    self.qxmit.put(output.encode('utf-8'))
 
+                """ Parse command """
+                cmd_dict = smb_cmd.parse_smb_cmd(strdata)
 
-if __name__ == "__main__":
-    while True:
-        port_num = input("Port? ")
-        try:
-            port_num = int(port_num)
-            break
-        except ValueError:
-            pass
+                """ Add command to the comand queue """
+                if self.qcmd.full() is not True:
+                    self.qcmd.put(cmd_dict)
 
-    ThreadedSocketServer('', port_num).listen()
+            while self.qxmit.empty() is not True:
+                """ Transmit any data in the transmit queue """
+                if self.qxmit.empty() is not True:
+                    data = self.qxmit.get()
+                    self.qxmit.task_done()
+                    conn.sendall(data)
+
+        conn.close()

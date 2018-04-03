@@ -5,21 +5,6 @@ Created on Thu Jan 25 08:38:35 2018
 @author: pi
 """
 
-""" List of SMB Commands """
-cmdlist = []
-
-"""Commands to be executed"""
-cmd_queue = None
-
-ExcitationCurrents = {
-    0: 0b000,
-    50: 0b001,
-    100: 0b010,
-    250: 0b011,
-    500: 0b100,
-    750: 0b101,
-    1000: 0b110
-}
 
 telemetry = {
     'humidity': 0.00,

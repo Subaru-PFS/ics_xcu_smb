@@ -1,3 +1,6 @@
+import re
+import db
+
 """
     - Action Commands
 
@@ -21,7 +24,7 @@
     ~      |  S  | Sens#   | 1 to 12  | SnsType  | infinite  | Store Sensor Type (0=RAW;1=DT670;2=THERMISTOR;3=RTD)
     ~      |  T  | Sens#   | 1 to 12  | n/a      | n/a       | Store Transmit Temp Data setting (0=FALSE;1=TRUE)
     ~      |  U  | Sens#'s | 12 bits  | Units    | 0,1,2     | Store Temperature Units (0=K;1=C;2=F)
-    ~      |  V  | DAC#    | 1 to 2   | Value    | 0 to 100% | Set Heater power %
+    ~      |  V  | DAC#    | 1 to 2   | Value    | 0 to .1   | Set Heater Current (A)
     ~      |  W  | LOOP#   | 1 to 2   | Value    | -460->500 | Set LOOP SetPoint
     ~      |  X  | A/D #   | 1 to 6   | Current  | 0 to 3    | Store Excit uA (0=NONE,1=50,2=100,3=250,4=500,5=750, 6,7=1000)
     ~      |  Z  | DAC#    | 1 to 2   | counts   | 0 to 2046 | set DAC output
@@ -55,7 +58,7 @@
     ?      |  S  | Sens#   | 1 to 12  | SnsType   | 0,1,2,3   | Read SensorType (0=RAW;1=DT670;2=THERMISTOR;3=RTD)
     ?      |  T  | Sens#   | 1 to 12  | Xmit?     | 0 to 1    | Read Transmit Temp Data setting (0=FALSE;1=TRUE)
     ?      |  U  | Sens#   | 1 to 12  | Units     | 0,1,2     | Read Temperature Units(0=K;1=C;2=F)
-    ?      |  V  | DAC#    | 1 to 2   | %         | 0 to 100% | Read Heater power %
+    ?      |  V  | DAC#    | 1 to 2   | %         | 0 to .1   | Read Heater Current (A)
     ?      |  W  | LOOP#   | 1 to 2   | Value     | -460->500 | Read LOOP SetPoint
     ?      |  X  | A/D #   | 1 to 6   | Current   | 0 to 3    | Read Excit uA(0=NONE, 1=50,2=100,3=250,4=500,5=750 6,7=1000)
     ?      |  a  | Const#  | 0 to 5   | Constants | +/- inf   | Read RTD polynomial K5X^5+K4X^4+K3X^3+K2X^2+K1X+K0
@@ -65,38 +68,64 @@
     ?      |  f  | Sens#   | 1 to 12  | Ref Volt  | 1.0 to 5.0| Read AD Reference voltage used for selected channel
     ?      |  t  | n/a     | n/a      | temps     |  +/- inf  | Read temperatures from all channels
     ?      |  i  | Heater# | 1 to 2   | Amps      |  0 to  .3 | Read Heater Current
-    ?      |  j   | voltage | 0 to 1.25| n/a       | n/a      | Read Low Voltage Threshold
+    ?      |  j  | voltage | 0 to 1.25| n/a       | n/a       | Read Low Voltage Threshold
 """
-import sqlite3
 
 
-def retrieve_smb_cmds_from_db():
-    # Builds a dict of dicts from garden sqlite db
-    cmd_dict = {}
-    conn = sqlite3.connect("smb.db")
-    # Need to allow write permissions by others
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    qry = 'select * from tblSmbCmds as data ORDER BY CMD'
-    c.execute(qry)
-    tuple_list = c.fetchall()
-    conn.close()
-    # Building dict from table rows
+class SmbCmd(object):
+    def __init__(self):
+        self.cmd_type = ''
+        self.cmd = ''
 
-    for item in tuple_list:
-        cmd_dict[item] = {
-            "PK_ID": item[0],
-            "READ": item[1],
-            "WRITE": item[2],
-            "CMD": item[3],
-            "P1_DEF": item[4],
-            "P1_MIN": item[5],
-            "P1_MAX": item[6],
-            "P2_DEF": item[7],
-            "P2_MIN": item[8],
-            "P2_MAX": item[9],
-            "RETURNS": item[10],
-            "DESCTIPTION" : item[11]
-        }
+    def parse_smb_cmd(self, cmdstr):
+        cmdstr = cmdstr.rstrip()  # remove whitespace at end of cmdstring
+        cmdstr = cmdstr.lstrip()  # remove whitespace at beginning of cmdstring
 
-    return cmd_dict
+        self.cmd_type = cmdstr[0:1]
+        # search for the cmd char
+        idx = 0
+        for char in cmdstr:
+            if char.isalpha():
+                break
+            idx += 1
+        self.cmd = cmdstr[idx:idx+1]
+        cmdparams = cmdstr[idx+1: len(cmdstr)]
+
+        params = self.get_cmd_params(cmdparams)
+
+        cmd_dict = db.db_fetch_cmd_specifications(self.cmd)
+        cmd_dict['CMD'] = self.cmd
+        cmd_dict['CMD_TYPE'] = self.cmd_type
+        cmd_dict['P1_DEF'] = params[0]
+        cmd_dict['P2_DEF'] = params[1]
+        if self.cmd_type == '?' or self.cmd_type == '~':
+            cmd_dict['ERROR'] = 0
+        else:
+            cmd_dict['ERROR'] = -1
+        return cmd_dict
+
+    def get_cmd_params(self, cmdstr):
+        str_param1 = ""
+        str_param2 = ""
+
+        strlist = re.findall(r"[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", cmdstr)
+        sublist1 = []
+        itx = 0
+        for item in strlist:
+            if item != "," and item != ", " and item != '\s':
+                sublist1.append(item)
+                itx += 1
+        param1 = 0
+        param2 = 0.0
+        if itx > 0:
+            for c in sublist1[0]:
+                if c.isdigit() or (c == '.') or (c == '+') or (c == '-'):  # make sure it is a number or decimal
+                    str_param1 = str_param1 + c  # if it is a number add it to cmdstr
+                    param1 = int(str_param1)
+        if itx > 1:
+            for c in sublist1[1]:
+                if c.isdigit() or (c == '.') or (c == '+') or (c == '-'):  # make sure it is a number or decimal
+                    str_param2 = str_param2 + c  # if it is a number add it to cmdstr
+                    param2 = float(str_param2)
+
+        return param1, param2

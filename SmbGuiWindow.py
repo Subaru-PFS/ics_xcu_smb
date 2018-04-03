@@ -4,25 +4,31 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtSlot
 import Gbl
 import SmbMainGui
-import sqlite3
-import db
-
+from db import config_table, db_fetch_table_data, db_fetch_tablenames, db_fetch_table_fields, db_update_htr_params
+import re
+from SMB_Cmd_handler import SmbCmd
 
 class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
 
-    # q_cmds = Queue(maxsize=100)
     tlm = Gbl.telemetry
-    # spi_bus.system_init(tlm)
 
-    def __init__(self, adcs, heaters):
+    def __init__(self, adcs, heaters , qcommand):
         super(MainWindow, self).__init__()
         self.htrs = heaters
         self.adcs = adcs
+        self.qcmd = qcommand
         self.setupUi(self)
+        # self.tabledata = []
         self.__gui_delegates()
         self._tablename = 'tblHtrParams'
         self.__read_loop1_settings()
-        db.populate_cmd_list()
+        self.tabMain.setCurrentIndex(0)
+
+        tblnames = db_fetch_tablenames()
+
+        for i in range(len(tblnames)):
+            line = re.sub('[!@#$,()\']', '', str(tblnames[i]))
+            self.cboDatabaseTableNames.addItem(line)
 
     def __gui_delegates(self):
         self.connect(self.btnReadAllTemps, QtCore.SIGNAL("released()"), self.__read_adc_temps)
@@ -38,74 +44,85 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
         self.connect(self.btnSetDterm1, QtCore.SIGNAL("released()"), self.__set_d_term1)
         self.connect(self.cboSelLoopSns1, QtCore.SIGNAL("activated(int)"), self.__set_loop_sensor1)
         self.connect(self.btnSetSp1, QtCore.SIGNAL("released()"), self.__set_setpt1)
-        self.connect(self.btnSetHtrPwrPercent1, QtCore.SIGNAL("released()"), self.__set_htr_percent1)
-        self.connect(self.groupHtrCtl, QtCore.SIGNAL("buttonReleased(QAbstractButton *)"), self.__set_htr_mode)
-        # self.connect(self.groupHtrCtl, QtCore.SIGNAL("buttonReleased(int)"), self.__set_htr_mode)
-        # button_clicked slot
+        self.connect(self.btnSetHtrCurrent1, QtCore.SIGNAL("released()"), self.__set_htr_current1)
+        self.connect(self.groupHtrCtl, QtCore.SIGNAL("buttonReleased(QAbstractButton *)"), self.__set_htr_mode1)
+        self.connect(self.cboDatabaseTableNames, QtCore.SIGNAL("activated(int)"), self.__read_tabledata_from_db)
+
+    def __read_tabledata_from_db(self):
+        tblname = self.cboDatabaseTableNames.currentText()
+        tabledata = db_fetch_table_data(tblname)
+        tblheader = db_fetch_table_fields(tblname)
+        self.table = config_table(self.tableView, tblheader, tabledata)
 
     @pyqtSlot(QtGui.QAbstractButton)
-    def __set_htr_mode(self, button_or_id):
+    def __set_htr_mode1(self, button_or_id):
         if button_or_id.text() == 'Disabled':
             value = 0
-        elif button_or_id.text() == 'Percent':
+            self.__enqueue_cmd("~L,1,0")
+
+        elif button_or_id.text() == 'Current':
             value = 1
+            """ Queue set mode Current command (L)"""
+            self.__enqueue_cmd("~L,1,1")
+
         elif button_or_id.text() == 'PID':
             value = 2
+            """ Queue set mode PID command (L)"""
+            self.__enqueue_cmd("~L,1,2")
         else:
             value = 0
         self.htrs[0].heater_mode = value
-        self.__update_htr_db_param(value, 'mode')
+        db_update_htr_params(value, 'mode', self._tablename)
 
-    def __set_htr_percent1(self):
-        value = self.SpinHtrPwrPercent1.value()
-        self.htrs[0].heater_percent = value
-        self.__update_htr_db_param(value, 'percent')
+    def __set_htr_current1(self):
+        value = self.SpinHtrCurrent1.value()
+        self.htrs[0].heater_current = value
+        self.txtDisplay.append("Expected Htr Voltage = {0:3.3f}V".format(value * 212.25))
+        db_update_htr_params(value, 'htr_current', self._tablename)
+        self.__enqueue_cmd("~V,1," + str(value))
+
+    def __enqueue_cmd(self, strdata):
+        smb_cmd = SmbCmd()
+        cmd_dict = smb_cmd.parse_smb_cmd(strdata)
+        if self.qcmd.full() is not True:
+            self.qcmd.put(cmd_dict)
 
     def __set_setpt1(self):
         value = self.SpinDblSetPoint1.value()
         self.htrs[0].heater_set_pt = value
-        self.__update_htr_db_param(value, 'set_pt')
+        db_update_htr_params(value, 'set_pt', self._tablename)
 
     def __set_loop_sensor1(self):
         value = self.cboSelLoopSns1.currentIndex() + 1
         self.htrs[0].heater_ctrl_sensor = value
-        self.__update_htr_db_param(value, 'ctrl_sensor')
+        db_update_htr_params(value, 'ctrl_sensor', self._tablename)
 
     def __set_pterm1(self):
         value = self.SpinDblPterm1.value()
         self.htrs[0].heater_p_term = value
-        self.__update_htr_db_param(value, 'P')
+        db_update_htr_params(value, 'P', self._tablename)
 
     def __set_i_term1(self):
         value = self.SpinDblIterm1.value()
         self.htrs[0].heater_i_term = value
-        self.__update_htr_db_param(value, 'I')
+        db_update_htr_params(value, 'I', self._tablename)
 
     def __set_d_term1(self):
         value = self.SpinDblDterm1.value()
         self.htrs[0].heater_d_term = value
-        self.__update_htr_db_param(value, 'D')
-
-    def __update_htr_db_param(self, value, name):
-        con = sqlite3.connect("smb.db")
-        cur = con.cursor()
-        qrytxt = "UPDATE {tn} SET {n} = {v}  WHERE PK_HTR_ID = 1". \
-            format(tn=self._tablename, n=name, v=value)
-        cur.execute(qrytxt)
-        con.commit()
-        con.close()
+        db_update_htr_params(value, 'D', self._tablename)
 
     def __read_loop1_settings(self):
         self.SpinDblSetPoint1.setValue(self.htrs[0].heater_set_pt)
         self.SpinDblPterm1.setValue(self.htrs[0].heater_p_term)
         self.SpinDblIterm1.setValue(self.htrs[0].heater_i_term)
         self.SpinDblDterm1.setValue(self.htrs[0].heater_d_term)
-        self.SpinHtrPwrPercent1.setValue(self.htrs[0].heater_percent)
+        self.SpinHtrCurrent1.setValue(self.htrs[0].heater_current)
         self.cboSelLoopSns1.setCurrentIndex(self.htrs[0].heater_ctrl_sensor - 1)
         if self.htrs[0].heater_mode == 0:
             self.radDisabled1.setChecked(True)
         elif self.htrs[0].heater_mode == 1:
-            self.radPercent1.setChecked(True)
+            self.radHtrCurrent1.setChecked(True)
         elif self.htrs[0].heater_mode == 2:
             self.radPid1.setChecked(True)
         else:
@@ -159,3 +176,4 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
             if 'humidity' in key:
                 buf = '{:s} = {:3.1f}%'.format(key, value)
                 self.txtDisplay.append(buf)
+
