@@ -41,27 +41,27 @@ class gpio(object):
         # GPIO.setup(spi1clk, GPIO.HIGH)  # SPI1-CS0
         # GPIO.output(spi1clk,1)
 
-        # """ Set SPI1 DAC CS (SYNC) pin high """
+        # Set SPI1 DAC CS (SYNC) pin high.
         # cs0 = self.pin_map['nDAC_CS0']
         # GPIO.setup(cs0, GPIO.OUT)  # SPI1-CS0
         # GPIO.output(cs0, 1)
 
-        """ Set DAC /RESET to output"""
+        # Set DAC /RESET to output.
         pin = self.pin_map['nRESET']
         GPIO.setup(pin, GPIO.OUT)
         GPIO.output(pin, 1)  # put DAC in run mode
 
-        """ Set DAC /LDAC to output """
+        # Set DAC /LDAC to output.
         pin = self.pin_map['nLDAC']
         GPIO.setup(pin, GPIO.OUT)
         GPIO.output(pin, 1)
 
-        """ Set DAC CLR to output"""
+        # Set DAC CLR to output.
         pin = self.pin_map['DAC_CLR']
         GPIO.setup(pin, GPIO.OUT)
         GPIO.output(pin, 0)
 
-        """ Set DAC /Alarm to input"""
+        # Set DAC /Alarm to input.
         pin = self.pin_map['nALARM']
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 

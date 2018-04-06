@@ -7,53 +7,54 @@ class PidHeater(object):
     def __init__(self, idx, tlm_dict):
         self.dac = DAC(idx)
         self._heater_num = idx + 1
-        self._heater_p_term = 1
-        self._heater_i_term = 1
-        self._heater_d_term = 1
-        self._heater_current = 0
+
+        self._heater_p_term = 1.0
+        self._heater_i_term = 1.0
+        self._heater_d_term = 1.0
+        self._heater_current = 0.0
         self._heater_mode = 0
         self._heater_ctrl_sensor = 0
         self._heater_set_pt = 0.0
         self.tlm_dict = tlm_dict
-        param_dict = db_fetch_heater_params(self._heater_num)
-        self.config_heater_params(param_dict)
+        self.last_pv = 0.0  # last process variable
+        self.mv_i = 0.0  # prescaled integration sum
+        self.mv_min = 0.0
+        self.mv_max = 100.0
+        self.config_heater_params()
 
+    # <editor-fold desc="******************* Properties *******************">
     @property
     def heater_p_term(self):
-        print("Getting value")
         return self._heater_p_term
 
     @heater_p_term.setter
     def heater_p_term(self, value):
-        if value < 0.0 or value > 100.0:
+        if value < self.mv_min or value > self.mv_max:
             raise ValueError("Heater P Term out of range")
         self._heater_p_term = value
 
     @property
     def heater_i_term(self):
-        print("Getting value")
         return self._heater_i_term
 
     @heater_i_term.setter
     def heater_i_term(self, value):
-        if value < 0.0 or value > 100.0:
+        if value < self.mv_min or value > self.mv_max:
             raise ValueError("Heater I Term out of range")
         self._heater_i_term = value
 
     @property
     def heater_d_term(self):
-        print("Getting value")
         return self._heater_d_term
 
     @heater_d_term.setter
     def heater_d_term(self, value):
-        if value < 0.0 or value > 100.0:
+        if value < self.mv_min or value > self.mv_max:
             raise ValueError("Heater D Term out of range")
         self._heater_d_term = value
 
     @property
     def heater_set_pt(self):
-        print("Getting value")
         return self._heater_set_pt
 
     @heater_set_pt.setter
@@ -64,7 +65,6 @@ class PidHeater(object):
 
     @property
     def heater_ctrl_sensor(self):
-        print("Getting value")
         return self._heater_ctrl_sensor
 
     @heater_ctrl_sensor.setter
@@ -75,7 +75,6 @@ class PidHeater(object):
 
     @property
     def heater_mode(self):
-        print("Getting value")
         return self._heater_mode
 
     @heater_mode.setter
@@ -86,7 +85,6 @@ class PidHeater(object):
 
     @property
     def heater_current(self):
-        print("Getting value")
         return self._heater_current
 
     @heater_current.setter
@@ -95,7 +93,12 @@ class PidHeater(object):
             raise ValueError("Heater current value out of range")
         self._heater_current = value
 
-    def config_heater_params(self, htr_param_dict):
+    # </editor-fold>
+
+    # <editor-fold desc="******************* Public Methods *******************">
+
+    def config_heater_params(self):
+        htr_param_dict = db_fetch_heater_params(self._heater_num)
         self._heater_p_term = htr_param_dict['P']
         self._heater_i_term = htr_param_dict['I']
         self._heater_d_term = htr_param_dict['D']
@@ -111,20 +114,20 @@ class PidHeater(object):
             pass
 
     def htr_enable_heater_current(self, state):
-        """ select all four dac channels """
-        dict_sel_dac_reg = self.dac.dac_read_register('dac_read_select_dac_reg','tblDacSelectDacReg')
+        # Select all four dac channels.
+        dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
         dict_sel_dac_reg['cha'] = True
         dict_sel_dac_reg['chb'] = True
         dict_sel_dac_reg['chc'] = True
         dict_sel_dac_reg['chd'] = True
-        self.dac.dac_write_register('select_dac','tblDacSelectDacReg',**dict_sel_dac_reg)
-        """ Now enable all four dac channels"""
-        dict_dac_cfg_reg = self.dac.dac_read_register('configuration_dac','tblDacConfigDacReg')
+        self.dac.dac_write_register('select_dac',  **dict_sel_dac_reg)
+        # Now enable all four dac channels.
+        dict_dac_cfg_reg = self.dac.dac_read_register('configuration_dac')
         dict_dac_cfg_reg['oten'] = state
-        self.dac.dac_write_register('configuration_dac','tblDacConfigDacReg',**dict_dac_cfg_reg)
+        self.dac.dac_write_register('configuration_dac',  **dict_dac_cfg_reg)
 
     def htr_set_heater_current(self, current):
-        """ Write Program DAC Data """
+        # Write Program DAC Data.
         self.set_all_currents_to_zero()
 
         if current > .024:
@@ -160,21 +163,21 @@ class PidHeater(object):
             self.dac.dac_write_dac_data_reg(hexval)
 
     def set_all_currents_to_zero(self):
-        dict_sel_dac_reg = self.dac.dac_read_register('dac_read_select_dac_reg','tblDacSelectDacReg')
+        dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
         dict_sel_dac_reg['cha'] = True
         dict_sel_dac_reg['chb'] = True
         dict_sel_dac_reg['chc'] = True
         dict_sel_dac_reg['chd'] = True
-        self.dac.dac_write_register('select_dac','tblDacSelectDacReg',**dict_sel_dac_reg)
+        self.dac.dac_write_register('select_dac',  **dict_sel_dac_reg)
         self.dac.dac_write_dac_data_reg(0x0000)
         dict_sel_dac_reg['cha'] = False
         dict_sel_dac_reg['chb'] = False
         dict_sel_dac_reg['chc'] = False
         dict_sel_dac_reg['chd'] = False
-        self.dac.dac_write_register('select_dac','tblDacSelectDacReg',**dict_sel_dac_reg)
+        self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
 
     def select_one_dac(self, dac):
-        dict_sel_dac_reg = self.dac.dac_read_register('dac_read_select_dac_reg','tblDacSelectDacReg')
+        dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
         if dac == 'a' or dac == 'A':
             dict_sel_dac_reg['cha'] = True
             dict_sel_dac_reg['chb'] = False
@@ -200,4 +203,35 @@ class PidHeater(object):
             dict_sel_dac_reg['chb'] = False
             dict_sel_dac_reg['chc'] = False
             dict_sel_dac_reg['chd'] = False
-        self.dac.dac_write_register('select_dac','tblDacSelectDacReg',**dict_sel_dac_reg)
+        self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
+
+    # </editor-fold>
+
+    # <editor-fold desc="******************* PID Methods *******************">
+
+    def pid_bounds_check(self, value):
+        if value > self.mv_max:
+            return self.mv_max
+
+        elif value < self.mv_min:
+            return self.mv_min
+        else:
+            return value
+
+    def calculate_pid(self, setpoint, pv):
+
+        self._heater_set_pt = setpoint
+        error = self._heater_set_pt - pv
+        self.mv_i += self._heater_i_term * error
+        self.mv_i = self.pid_bounds_check(self.mv_i)
+
+        mv = (self._heater_p_term * error) + self.mv_i + (self._heater_d_term * (self.last_pv - pv))
+        self.last_pv = pv
+
+        return self.pid_bounds_check(mv)
+
+
+    # </editor-fold>
+
+    # TODO: Bild PID control loop.
+    # TODO: Add PID as mode option

@@ -8,11 +8,12 @@ from db import config_table, db_fetch_table_data, db_fetch_tablenames, db_fetch_
 import re
 from SMB_Cmd_handler import SmbCmd
 
+
 class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
 
     tlm = Gbl.telemetry
 
-    def __init__(self, adcs, heaters , qcommand):
+    def __init__(self, adcs, heaters, qcommand):
         super(MainWindow, self).__init__()
         self.htrs = heaters
         self.adcs = adcs
@@ -47,6 +48,17 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
         self.connect(self.btnSetHtrCurrent1, QtCore.SIGNAL("released()"), self.__set_htr_current1)
         self.connect(self.groupHtrCtl, QtCore.SIGNAL("buttonReleased(QAbstractButton *)"), self.__set_htr_mode1)
         self.connect(self.cboDatabaseTableNames, QtCore.SIGNAL("activated(int)"), self.__read_tabledata_from_db)
+        self.connect(self.spinAdcFilterDataRate, QtCore.SIGNAL("valueChanged(int)"), self.__adc_set_filter_rate)
+
+    def __adc_set_filter_rate(self):
+        i=0
+        for checkbox in self.grpAdcs.findChildren(QtGui.QCheckBox):
+            if checkbox.isChecked() is True:
+                self.adcs[i].adc_set_filter_rate(self.spinAdcFilterDataRate.value())
+                i += 1
+                # self.__enqueue_cmd()
+
+        pass
 
     def __read_tabledata_from_db(self):
         tblname = self.cboDatabaseTableNames.currentText()
@@ -62,12 +74,12 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
 
         elif button_or_id.text() == 'Current':
             value = 1
-            """ Queue set mode Current command (L)"""
+            # Queue set mode Current command (L).
             self.__enqueue_cmd("~L,1,1")
 
         elif button_or_id.text() == 'PID':
             value = 2
-            """ Queue set mode PID command (L)"""
+            # Queue set mode PID command (L).
             self.__enqueue_cmd("~L,1,2")
         else:
             value = 0
@@ -84,7 +96,8 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
     def __enqueue_cmd(self, strdata):
         smb_cmd = SmbCmd()
         cmd_dict = smb_cmd.parse_smb_cmd(strdata)
-        if self.qcmd.full() is not True:
+        if not self.qcmd.full():
+            self.txtDisplay.append(strdata)
             self.qcmd.put(cmd_dict)
 
     def __set_setpt1(self):
@@ -176,4 +189,3 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
             if 'humidity' in key:
                 buf = '{:s} = {:3.1f}%'.format(key, value)
                 self.txtDisplay.append(buf)
-

@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import sys
 from PyQt4 import QtGui
-
-import db
 from SmbGuiWindow import MainWindow
 from tasks_loop import DoTasks
 from tcpip import TcpServer
@@ -10,7 +8,7 @@ import Gbl
 import ADC
 from heaters import PidHeater
 import queue
-# from tcpip import ThreadedSocketServer
+
 
 def main():
 
@@ -19,20 +17,17 @@ def main():
     qcmd = queue.Queue()
     qcmd.empty()
 
-    Gbl.cmdlist = db.db_table_data_to_dictionary('tblSmbCmds')
-
     tlm = Gbl.telemetry
 
-    """ Create DAC Objects"""
+    # Create DAC objects.
     heaters = [PidHeater(i, tlm) for i in range(1)]
 
-    """ Create ADC Objects"""
+    # Create ADC objects.
     adcs = [ADC.ADC(i, tlm) for i in range(2)]
 
-    # Setup Socket Thread
+    # Setup socket thread.
     t1 = TcpServer(qcmd, qxmit)
     t1.start()
-
 
     # Get data, service PID etc.
     t2 = DoTasks(tlm, adcs, heaters, qcmd, qxmit)
@@ -42,7 +37,11 @@ def main():
     main_window = MainWindow(adcs, heaters, qcmd)
     main_window.show()
     app.exec_()
+
+    t1.join()
     t2.join()
+    qxmit.join()
+    qcmd.join()
 
 
 if __name__ == "__main__":

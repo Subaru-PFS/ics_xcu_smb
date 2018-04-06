@@ -12,7 +12,8 @@ from Sensor import sensor
 import ADC_helper_ftns as AdcHelper
 
 from db import (db_adc_fetch_params, db_table_data_to_dictionary,
-                db_adc_fetch_sensor_constants,db_fetch_names_n_values)
+                db_adc_fetch_sensor_constants, db_fetch_names_n_values,
+                db_adc_register_data_to_dictionary)
 
 
 class ADC(object):
@@ -39,23 +40,23 @@ class ADC(object):
     def __delete__(self, instance):
         self.spi_obj.close()
 
-    # <editor-fold desc="*************** Properties*******************">
+    # <editor-fold desc="******************* Properties *******************">
 
     # </editor-fold>
 
-    # <editor-fold desc="************* AD7124 Public Methods ********************">
+    # <editor-fold desc="******************* AD7124 Public Methods *******************">
 
     def adc_initialize(self):
-        """ Read database parameters """
+        # Read database parameters.
         parameters = db_adc_fetch_params(self._sens_num)
         self.__config_adc_params(**parameters)
-        rows = db_adc_fetch_sensor_constants(self._sns_type)
-        self.__adc_config_sensor_constants(**rows)
+        const_dict = db_adc_fetch_sensor_constants(self._sns_type)
+        self.__adc_config_sensor_constants(**const_dict)
         self.RegAddrs = db_table_data_to_dictionary('tblAdcRegisters')
 
-        """ SET GPIO numering mode to use GPIO designation, NOT pin numbers """
+        # SET GPIO numering mode to use GPIO designation, NOT pin numbers.
         GPIO.setmode(GPIO.BCM)
-        """ Set SPI0 ADC CS pins high """
+        # Set SPI0 ADC CS pins high.
         if self._sens_num == 1:
             GPIO.setup(8, GPIO.OUT)  # SPIO-CS0
             GPIO.output(8, 1)
@@ -68,32 +69,33 @@ class ADC(object):
         self.adc_config_channels()
         self.adc_write_configurations()
 
-        """ Fetch default reg values from db """
-        dict_io_ctrl_reg1 = db_fetch_names_n_values('tblAdcIoControl1Reg')
-        """ Write IO Control 1 Register """
-        self.adc_write_register('IOCon1', 'tblAdcIoControl1Reg',**dict_io_ctrl_reg1 )
-        value = self.adc_read_register('IOCon1', 'tblAdcIoControl1Reg')
+        # Fetch default reg values from db.
+        dict_io_ctrl_reg1 = db_fetch_names_n_values('IOCon1', self._sens_num)
+        # Write IO Control 1 Register.
+        # self.adc_write_register('IOCon1', 'tblAdcIoControl1Reg',**dict_io_ctrl_reg1 )
+        self.adc_write_register('IOCon1', **dict_io_ctrl_reg1)
+        value = self.adc_read_register('IOCon1')
         print(value)
 
-        """ Fetch default reg values from db """
-        dict_io_ctrl_reg2 = db_fetch_names_n_values('tblAdcIoControl2Reg')
-        """ Write IO Control 2 Register """
-        self.adc_write_register('IOCon2', 'tblAdcIoControl2Reg',**dict_io_ctrl_reg2)
-        value = self.adc_read_register('IOCon2', 'tblAdcIoControl2Reg')
+        # Fetch default reg values from db.
+        dict_io_ctrl_reg2 = db_fetch_names_n_values('IOCon2', self._sens_num)
+        # Write IO Control 2 Register.
+        self.adc_write_register('IOCon2', **dict_io_ctrl_reg2)
+        value = self.adc_read_register('IOCon2')
         print(value)
 
-        """ Fetch default reg values from db """
-        dict_error_en_reg = db_fetch_names_n_values('tblAdcErrorEnReg')
-        """ Write Error Enable Register """
-        self.adc_write_register('Error_En' , 'tblAdcErrorEnReg', **dict_error_en_reg)
-        value = self.adc_read_register('Error_En' , 'tblAdcErrorEnReg')
+        # Fetch default reg values from db.
+        dict_error_en_reg = db_fetch_names_n_values('Error_En', self._sens_num)
+        # Write Error Enable Register.
+        self.adc_write_register('Error_En', **dict_error_en_reg)
+        value = self.adc_read_register('Error_En')
         print(value)
 
-        """ Fetch default reg values from db """
-        dict_control_reg = db_fetch_names_n_values('tblAdcControlReg')
-        """ Write Control Register """
-        self.adc_write_register('ADC_Control', 'tblAdcControlReg', **dict_control_reg)
-        value = self.adc_read_register('ADC_Control', 'tblAdcControlReg')
+        # Fetch default reg values from db.
+        dict_control_reg = db_fetch_names_n_values('ADC_Control', self._sens_num)
+        # Write Control Register
+        self.adc_write_register('ADC_Control', **dict_control_reg)
+        value = self.adc_read_register('ADC_Control')
         print(value)
 
     def read_conversion_data(self):
@@ -186,45 +188,45 @@ class ADC(object):
             data_32.pop(0)
             print(data_32)
 
-        """ CH0 - PT1000"""
+        # CH0 - PT1000
         input_p = AdcHelper.InputSel['AIN1Input']
         input_n = AdcHelper.InputSel['AIN4Input']
-        self.adc_write_register('Channel_0', 'tblAdcChannelRegs', ainp=input_p, ainm=input_n, setup=0, enable=True)
+        self.adc_write_register('Channel_0', ainp=input_p, ainm=input_n, setup=0, enable=True)
         value = self.adc_read_channel_regs('Channel_0')
         print(value)
 
-        """ CH1 - RT1 Thermistor """
+        # CH1 - RT1 Thermistor
         input_p = AdcHelper.InputSel['AIN5Input']
         input_n = AdcHelper.InputSel['AIN6Input']
-        self.adc_write_register('Channel_1', 'tblAdcChannelRegs', ainp=input_p, ainm=input_n, setup=1, enable=True)
+        self.adc_write_register('Channel_1', ainp=input_p, ainm=input_n, setup=1, enable=True)
         value = self.adc_read_channel_regs('Channel_1')
         print(value)
 
-        """ CH2 - IOVDD """
+        # CH2 - IOVDD
         input_p = AdcHelper.InputSel['IOVDD6PInput']
         input_n = AdcHelper.InputSel['IOVDD6MInput']
-        self.adc_write_register('Channel_2', 'tblAdcChannelRegs', ainp=input_p, ainm=input_n, setup=1, enable=True)
+        self.adc_write_register('Channel_2', ainp=input_p, ainm=input_n, setup=1, enable=True)
         value = self.adc_read_channel_regs('Channel_2')
         print(value)
 
-        """ CH2 - AVDD """
+        # CH2 - AVDD
         input_p = AdcHelper.InputSel['AVDD6PInput']
         input_n = AdcHelper.InputSel['AVDD6MInput']
-        self.adc_write_register('Channel_3', 'tblAdcChannelRegs', ainp=input_p, ainm=input_n, setup=1, enable=True)
+        self.adc_write_register('Channel_3',  ainp=input_p, ainm=input_n, setup=1, enable=True)
         value = self.adc_read_channel_regs('Channel_3')
         print(value)
 
-        """ CH5 - Internal Sensor """
+        # CH5 - Internal Sensor.
         input_p = AdcHelper.InputSel['TEMPInput']
         input_n = AdcHelper.InputSel['AVSSInput']
-        self.adc_write_register('Channel_5', 'tblAdcChannelRegs', ainp=input_p, ainm=input_n, setup=3, enable=True)
+        self.adc_write_register('Channel_5', ainp=input_p, ainm=input_n, setup=3, enable=True)
         value = self.adc_read_channel_regs('Channel_5')
         print(value)
 
-        """ CH6 - Regerence In """
+        # CH6 - Regerence In
         input_p = AdcHelper.InputSel['REFInput']
         input_n = AdcHelper.InputSel['AIN7Input']
-        self.adc_write_register('Channel_6' , 'tblAdcChannelRegs', ainp=input_p, ainm=input_n, setup=2, enable=True)
+        self.adc_write_register('Channel_6' , ainp=input_p, ainm=input_n, setup=2, enable=True)
         value = self.adc_read_channel_regs('Channel_6')
         print(value)
         print("After Ch Programming")
@@ -235,7 +237,7 @@ class ADC(object):
         refid = AdcHelper.RefSel['RefIn1']
         gain = AdcHelper.select_gain_to_strings(self._adc_gain)
         pgaid = AdcHelper.PgaSel[gain]
-        self.adc_write_register('Config_0', 'tblAdcConfigurationRegs',
+        self.adc_write_register('Config_0',
                                 pga=pgaid, ref_sel=refid, ain_bufm=True, ain_bufp=True,
                                 ref_bufm=True, ref_bufp=True, burnout=burnoutid, bipolar=True)
         value = self.adc_read_configuration_regs('Config_0')
@@ -243,7 +245,7 @@ class ADC(object):
 
         pgaid = AdcHelper.PgaSel['Pga1']
         refid = AdcHelper.RefSel['RefInternal']
-        self.adc_write_register('Config_1', 'tblAdcConfigurationRegs',
+        self.adc_write_register('Config_1',
                                 pga=pgaid, ref_sel=refid, ain_bufm=True, ain_bufp=True,
                                 ref_bufm=True, ref_bufp=True, burnout=burnoutid, bipolar=False)
         value = self.adc_read_configuration_regs('Config_1')
@@ -251,7 +253,7 @@ class ADC(object):
 
         pgaid = AdcHelper.PgaSel['Pga1']
         refid = AdcHelper.RefSel['RefAVdd']
-        self.adc_write_register('Config_2', 'tblAdcConfigurationRegs',
+        self.adc_write_register('Config_2',
                                 pga=pgaid, ref_sel=refid, ain_bufm=True, ain_bufp=True,
                                 ref_bufm=True, ref_bufp=True, burnout=burnoutid, bipolar=False)
         value = self.adc_read_configuration_regs('Config_2')
@@ -260,14 +262,14 @@ class ADC(object):
         pgaid = AdcHelper.PgaSel['Pga1']
         refid = AdcHelper.RefSel['RefInternal']
         burnoutid = AdcHelper.BurnoutCurrent['BurnoutOff']
-        self.adc_write_register('Config_3', 'tblAdcConfigurationRegs',
+        self.adc_write_register('Config_3',
                                 pga=pgaid, ref_sel=refid, ain_bufm=True, ain_bufp=True,
                                 ref_bufm=True, ref_bufp=True, burnout=burnoutid, bipolar=True)
         value = self.adc_read_configuration_regs('Config_3')
         print(value)
 
     def adc_read_configuration_regs(self, config_name):
-        reg_bit_data = db_table_data_to_dictionary('tblAdcConfigurationRegs')
+        reg_bit_data = db_adc_register_data_to_dictionary('Config_0', self._sens_num)
         data_16 = self.__adc_read_register(config_name, 2)
         data_16.pop(0)
         value = int.from_bytes(data_16, byteorder='big', signed=False)
@@ -282,7 +284,7 @@ class ADC(object):
         data_16 = self.__adc_read_register(ch_name, 2)
         data_16.pop(0)
         value = int.from_bytes(data_16, byteorder='big', signed=False)
-        reg_bit_data = db_table_data_to_dictionary('tblAdcChannelRegs')
+        reg_bit_data = db_adc_register_data_to_dictionary('Channel_0', self._sens_num)
         dict_adc_channel_regs = dict()
         for item in reg_bit_data:
             keyname = item['NAME']
@@ -294,7 +296,7 @@ class ADC(object):
         data_24 = self.__adc_read_register(filter_name, 3)
         data_24.pop(0)
         value = int.from_bytes(data_24, byteorder='big', signed=False)
-        reg_bit_data = db_table_data_to_dictionary('tblAdcControlReg')
+        reg_bit_data = db_adc_register_data_to_dictionary('ADC_Control', self._sens_num)
         dict_adc_cntrl_reg = dict()
         for item in reg_bit_data:
             keyname = item['NAME']
@@ -302,13 +304,17 @@ class ADC(object):
             dict_adc_cntrl_reg[keyname] = dataval
         return dict_adc_cntrl_reg
 
+    def adc_set_filter_rate(self, rate):
+        print(rate)
+
+
     def adc_reset(self):
         """ Reset the ADC """
         wrbuf = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
         self.spi_obj.writebytes(wrbuf)
 
-    def adc_write_register(self, reg_name, tablename , **kwargs):
-        reg_dict = db_table_data_to_dictionary(tablename)
+    def adc_write_register(self, reg_name,  **kwargs):
+        reg_dict = db_adc_register_data_to_dictionary(reg_name, self._sens_num)
         write_bytes = self.__adc_getbytes_from_reg_bits(kwargs, reg_dict)
         regid = self.__search_reg_address_from_name(reg_name)
         rbytes = write_bytes.to_bytes((write_bytes.bit_length() + 7) // 8, byteorder='big')
@@ -318,8 +324,8 @@ class ADC(object):
             bytelist.append(val)
         self.spi_obj.xfer2(bytelist)
 
-    def adc_read_register(self, reg_name, tblname):
-        reg_bit_data = db_table_data_to_dictionary(tblname)
+    def adc_read_register(self, reg_name):
+        reg_bit_data = db_adc_register_data_to_dictionary(reg_name, self._sens_num)
         bytes = self.__search_reg_bytes_from_name(reg_name)
         data_24 = self.__adc_read_register(reg_name, bytes)
         data_24.pop(0)
@@ -333,7 +339,7 @@ class ADC(object):
 
     # </editor-fold>
 
-    # <editor-fold desc="************* AD7124 Private Methods ********************">
+    # <editor-fold desc="******************* AD7124 Private Methods *******************">
 
     def __wait_end_of_conversion(self, timeout_s):
         starttime = time.time()
@@ -341,7 +347,7 @@ class ADC(object):
         data_8 = 0x00
         while nready is 1:
             # data_8 = self.adc_read_status_register()
-            data_8 = self.adc_read_register('Status', 'tblAdcStatusReg')
+            data_8 = self.adc_read_register('Status')
             nready = data_8['n_rdy']
             currtime = time.time()
             if currtime - starttime > timeout_s:
