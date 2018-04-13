@@ -1,6 +1,5 @@
 import spi_bus
 from GPIO_config import gpio
-from db import db_table_data_to_dictionary, db_dac_register_data_to_dictionary
 
 
 class DAC(object):
@@ -11,8 +10,10 @@ class DAC(object):
 
     # <editor-fold desc="******************* Public Methods *******************">
 
-    def __init__(self, idx):
+    def __init__(self, idx, smbdb):
+        self.db = smbdb
         self.idx = idx
+        self.dac_num = idx +1
         self.RegAddrs = []
         self._DUMMY_BYTE = 0x00
         self._READ_FLAG = 0x80
@@ -27,7 +28,7 @@ class DAC(object):
 
     def dac_initialize(self):
         """ Reset the DAC """
-        self.RegAddrs = db_table_data_to_dictionary('tblDacRegisters')
+        self.RegAddrs = self.db.db_table_data_to_dictionary('tblDacRegisters')
         self.dac_reset()
         # status = self.dac_aliveness_check()
         # if status is True:
@@ -84,7 +85,7 @@ class DAC(object):
         print("Dac cfg = 0x%x" % dacdata)
 
     def dac_write_register(self, regname,  **kwargs):
-        reg_dict = db_dac_register_data_to_dictionary(regname)
+        reg_dict = self.db.db_dac_register_data_to_dictionary(regname, self.dac_num)
         write_bytes = self.__dac_getbytes_from_reg_bits(kwargs, reg_dict)
 
         regid = self.__search_reg_address_from_name(regname)
@@ -108,7 +109,7 @@ class DAC(object):
         data_24 = self.spi_obj.xfer2(byte_list)
         data_24.pop(0)
         value = int.from_bytes(data_24, byteorder='big', signed=False)
-        reg_bit_data = db_dac_register_data_to_dictionary(reg_name)
+        reg_bit_data = self.db.db_dac_register_data_to_dictionary(reg_name, self.dac_num)
         dict_register = dict()
         for item in reg_bit_data:
             keyname = item['NAME']

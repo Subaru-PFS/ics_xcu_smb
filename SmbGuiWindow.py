@@ -4,28 +4,29 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtSlot
 import Gbl
 import SmbMainGui
-from db import config_table, db_fetch_table_data, db_fetch_tablenames, db_fetch_table_fields, db_update_htr_params
 import re
 from SMB_Cmd_handler import SmbCmd
-
+from db import config_table
 
 class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
 
     tlm = Gbl.telemetry
 
-    def __init__(self, adcs, heaters, qcommand):
+    def __init__(self, db, adcs, heaters, qcommand):
         super(MainWindow, self).__init__()
+        self.db = db
         self.htrs = heaters
         self.adcs = adcs
         self.qcmd = qcommand
         self.setupUi(self)
-        # self.tabledata = []
         self.__gui_delegates()
         self._tablename = 'tblHtrParams'
         self.__read_loop1_settings()
         self.tabMain.setCurrentIndex(0)
 
-        tblnames = db_fetch_tablenames()
+
+
+        tblnames = self.db.db_fetch_tablenames()
 
         for i in range(len(tblnames)):
             line = re.sub('[!@#$,()\']', '', str(tblnames[i]))
@@ -48,7 +49,32 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
         self.connect(self.btnSetHtrCurrent1, QtCore.SIGNAL("released()"), self.__set_htr_current1)
         self.connect(self.groupHtrCtl, QtCore.SIGNAL("buttonReleased(QAbstractButton *)"), self.__set_htr_mode1)
         self.connect(self.cboDatabaseTableNames, QtCore.SIGNAL("activated(int)"), self.__read_tabledata_from_db)
-        self.connect(self.spinAdcFilterDataRate, QtCore.SIGNAL("valueChanged(int)"), self.__adc_set_filter_rate)
+        # self.connect(self.spinAdcFilterDataRate, QtCore.SIGNAL("valueChanged(int)"), self.__adc_set_filter_rate)
+        self.connect(self.btnSetFilterDataRate, QtCore.SIGNAL("released()"), self.__adc_set_filter_rate)
+        self.connect(self.cboExciationCurrent, QtCore.SIGNAL("activated(int)"), self.__adc_set_excitation_current)
+        self.connect(self.cboSelectAdcSincFilter, QtCore.SIGNAL("activated(int)"), self.__adc_set_sync_filter)
+
+    def __adc_set_sync_filter(self):
+        value=self.cboSelectAdcSincFilter()
+        i=1
+        for checkbox in self.grpAdcs.findChildren(QtGui.QCheckBox):
+            if checkbox.isChecked() is True:
+                cmdtxt = '~Q, {adc}, {v}'.format(adc=i, v=value)
+                self.__enqueue_cmd(cmdtxt)
+            i += 1
+
+    def __adc_set_excitation_current(self):
+        value = self.cboExciationCurrent.currentIndex()
+
+        i = 1
+        for checkbox in self.grpAdcs.findChildren(QtGui.QCheckBox):
+            if checkbox.isChecked() is True:
+                # self.adcs[i].adc_set_exciatiation_current(value)
+                cmdtxt = '~X, {adc}, {v}'.format(adc=i, v=value)
+                # print(cmdtxt)
+                self.__enqueue_cmd(cmdtxt)
+            i += 1
+
 
     def __adc_set_filter_rate(self):
         i=0
@@ -62,8 +88,8 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
 
     def __read_tabledata_from_db(self):
         tblname = self.cboDatabaseTableNames.currentText()
-        tabledata = db_fetch_table_data(tblname)
-        tblheader = db_fetch_table_fields(tblname)
+        tabledata =  self.db.db_fetch_table_data(tblname)
+        tblheader = self.db.db_fetch_table_fields(tblname)
         self.table = config_table(self.tableView, tblheader, tabledata)
 
     @pyqtSlot(QtGui.QAbstractButton)
@@ -84,17 +110,17 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
         else:
             value = 0
         self.htrs[0].heater_mode = value
-        db_update_htr_params(value, 'mode', self._tablename)
+        self.db.db_update_htr_params(value, 'mode', 1)
 
     def __set_htr_current1(self):
         value = self.SpinHtrCurrent1.value()
         self.htrs[0].heater_current = value
         self.txtDisplay.append("Expected Htr Voltage = {0:3.3f}V".format(value * 212.25))
-        db_update_htr_params(value, 'htr_current', self._tablename)
+        self.db.db_update_htr_params(value, 'htr_current', 1)
         self.__enqueue_cmd("~V,1," + str(value))
 
     def __enqueue_cmd(self, strdata):
-        smb_cmd = SmbCmd()
+        smb_cmd = SmbCmd(self.db)
         cmd_dict = smb_cmd.parse_smb_cmd(strdata)
         if not self.qcmd.full():
             self.txtDisplay.append(strdata)
@@ -103,27 +129,27 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
     def __set_setpt1(self):
         value = self.SpinDblSetPoint1.value()
         self.htrs[0].heater_set_pt = value
-        db_update_htr_params(value, 'set_pt', self._tablename)
+        self.db.db_update_htr_params(value, 'set_pt', 1)
 
     def __set_loop_sensor1(self):
         value = self.cboSelLoopSns1.currentIndex() + 1
         self.htrs[0].heater_ctrl_sensor = value
-        db_update_htr_params(value, 'ctrl_sensor', self._tablename)
+        self.db.db_update_htr_params(value, 'ctrl_sensor', 1)
 
     def __set_pterm1(self):
         value = self.SpinDblPterm1.value()
         self.htrs[0].heater_p_term = value
-        db_update_htr_params(value, 'P', self._tablename)
+        self.db.db_update_htr_params(value, 'P', 1)
 
     def __set_i_term1(self):
         value = self.SpinDblIterm1.value()
         self.htrs[0].heater_i_term = value
-        db_update_htr_params(value, 'I', self._tablename)
+        self.db.db_update_htr_params(value, 'I', 1)
 
     def __set_d_term1(self):
         value = self.SpinDblDterm1.value()
         self.htrs[0].heater_d_term = value
-        db_update_htr_params(value, 'D', self._tablename)
+        self.db.db_update_htr_params(value, 'D', 1)
 
     def __read_loop1_settings(self):
         self.SpinDblSetPoint1.setValue(self.htrs[0].heater_set_pt)

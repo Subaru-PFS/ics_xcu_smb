@@ -34,3 +34,13 @@ def bytes_to_hex(nbytes):
     (hexadecimal). This is often useful during debugging. 
     """
     return '[{}]'.format(', '.join(hex(x) for x in nbytes))
+
+
+def temp_k_to_c(temp_k):
+    temp_c = temp_k-273.15
+    return temp_c
+
+
+def temp_k_to_f(temp_k):
+    temp_f = (temp_k*1.8 + 32)
+    return temp_f

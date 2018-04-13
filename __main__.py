@@ -8,10 +8,11 @@ import Gbl
 import ADC
 from heaters import PidHeater
 import queue
-
+from db import smb_db
 
 def main():
 
+    db = smb_db()
     qxmit = queue.Queue()
     qxmit.empty()
     qcmd = queue.Queue()
@@ -20,10 +21,10 @@ def main():
     tlm = Gbl.telemetry
 
     # Create DAC objects.
-    heaters = [PidHeater(i, tlm) for i in range(1)]
+    heaters = [PidHeater(i, db, tlm) for i in range(1)]
 
     # Create ADC objects.
-    adcs = [ADC.ADC(i, tlm) for i in range(2)]
+    adcs = [ADC.ADC(i, db, tlm) for i in range(2)]
 
     # Setup socket thread.
     t1 = TcpServer(qcmd, qxmit)
@@ -34,7 +35,7 @@ def main():
     t2.start()
 
     app = QtGui.QApplication(sys.argv)
-    main_window = MainWindow(adcs, heaters, qcmd)
+    main_window = MainWindow(db, adcs, heaters, qcmd)
     main_window.show()
     app.exec_()
 

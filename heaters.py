@@ -1,11 +1,11 @@
 from DAC8775 import DAC
-from db import db_fetch_heater_params
 
 
 class PidHeater(object):
     """ pid_heater class """
-    def __init__(self, idx, tlm_dict):
-        self.dac = DAC(idx)
+    def __init__(self, idx, smbdb, tlm_dict):
+        self.db = smbdb
+        self.dac = DAC(idx, self.db)
         self._heater_num = idx + 1
 
         self._heater_p_term = 1.0
@@ -23,6 +23,7 @@ class PidHeater(object):
         self.config_heater_params()
 
     # <editor-fold desc="******************* Properties *******************">
+
     @property
     def heater_p_term(self):
         return self._heater_p_term
@@ -98,7 +99,7 @@ class PidHeater(object):
     # <editor-fold desc="******************* Public Methods *******************">
 
     def config_heater_params(self):
-        htr_param_dict = db_fetch_heater_params(self._heater_num)
+        htr_param_dict = self.db.db_fetch_heater_params(self._heater_num)
         self._heater_p_term = htr_param_dict['P']
         self._heater_i_term = htr_param_dict['I']
         self._heater_d_term = htr_param_dict['D']

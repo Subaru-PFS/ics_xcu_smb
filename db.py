@@ -1,10 +1,219 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-import sqlite3
 import sys
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-import itertools
+from PyQt4.QtSql import *
+# import itertools
+
+
+class smb_db(object):
+
+    def __init__(self):
+        self.db = QSqlDatabase.addDatabase("QSQLITE")
+        self.db.setDatabaseName("smb.db")
+
+        if not self.db.open():
+            result = QMessageBox.warning(None, 'Phone Log', "Database Error: %s" % self.db.lastError().text())
+            print(result)
+            sys.exit(1)
+
+    def db_fetch_table_fields(self, tblname):
+        query = QSqlQuery(self.db)
+        qrytxt = "pragma table_info({tn})".format(tn=tblname)
+        query.exec_(qrytxt)
+        print(qrytxt)
+        tblheader = []
+        while query.next():
+            tblheader.append(query.value(1))
+        return tblheader
+
+    def db_fetch_table_data(self, tblname):
+        query = QSqlQuery(self.db)
+        query.exec_("SELECT * FROM " + tblname)
+        data_list = []
+        while query.next():
+            i = 0
+            data = {}
+            while query.value(i) is not None:
+                data[i] = query.value(i)
+                i += 1
+            data_list.append(data)
+        return data_list
+
+    def db_table_data_to_dictionary(self, tblname):
+        query = QSqlQuery(self.db)
+        query.exec_("SELECT * FROM " + tblname)
+        data_list = []
+        column_names = self.db_fetch_table_fields(tblname)
+
+        data_dict = {}
+        data = []
+        i = 0
+        while query.next():
+            for i in range(len(column_names)):
+                data_dict[column_names[i]] = query.value(i)
+                data_list.append(data_dict)
+            data_dict = {}
+
+        return data_list
+
+    def db_fetch_tablenames(self):
+        query = QSqlQuery(self.db)
+        qrytxt = ("SELECT name FROM sqlite_master "
+                  "WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' "
+                  "UNION ALL "
+                  "SELECT name FROM sqlite_temp_master "
+                  "WHERE type IN ('table','view') ORDER BY 1")
+        query.exec_(qrytxt)
+        print(qrytxt)
+        list = []
+        while query.next():
+            list.append(query.value(0))
+        return list
+
+    # <editor-fold desc="******* Heater Queries ********">
+
+    def db_update_htr_params(self, value, name, htr_num):
+        query = QSqlQuery(self.db)
+        qrytxt = "UPDATE tblHtrParams SET {n} = {v}  WHERE PK_HTR_ID = {hn}". \
+            format(n=name, v=value, hn=htr_num)
+        query.exec_(qrytxt)
+
+    def db_fetch_heater_params(self, heater_num):
+        htr_param_dict = {}
+        query = QSqlQuery(self.db)
+        qrytxt = "SELECT * FROM tblHtrParams WHERE PK_HTR_ID = " + str(heater_num)
+        query.exec_(qrytxt)
+        fields = self.db_fetch_table_fields('tblHtrParams')
+        while query.next():
+            i = 0
+            for field in fields:
+                htr_param_dict[field] = query.value(i)
+                i = i + 1
+        return htr_param_dict
+
+    # </editor-fold>
+
+    # <editor-fold desc="******** ADC Queries ********************">
+
+    def db_adc_update_register_field(self, field_name, sns_num, value):
+        query = QSqlQuery(self.db)
+        qrytxt = "UPDATE tblAdcRegBits{sn} SET value = {v} " \
+                 "WHERE NAME = '{rf}'".format(sn=sns_num, v=value, rf=field_name)
+        query.exec_(qrytxt)
+
+    def db_adc_fetch_sensor_constants(self, sns_type):
+        adc_sns_const_dict = {}
+        query = QSqlQuery(self.db)
+        qrytxt = "SELECT * FROM tblPolynomialCostants WHERE Device = '{st}' LIMIT 1".format(st=sns_type)
+        query.exec_(qrytxt)
+
+        fields = self.db_fetch_table_fields('tblPolynomialCostants')
+        while query.next():
+            i = 0
+            for field in fields:
+                adc_sns_const_dict[field] = query.value(i)
+                i = i + 1
+
+        return adc_sns_const_dict
+
+    def db_adc_fetch_params(self, sensor_num):
+        adc_param_dict = {}
+        query = QSqlQuery(self.db)
+        qrytxt = "SELECT * FROM tblAdcParams WHERE PK_ADC_ID = " + str(sensor_num)
+        query.exec_(qrytxt)
+        fields = self.db_fetch_table_fields('tblAdcParams')
+        while query.next():
+            i = 0
+            for field in fields:
+                adc_param_dict[field] = query.value(i)
+                i = i + 1
+
+        return adc_param_dict
+
+    def db_adc_register_data_to_dictionary(self, regname, adc_num):
+        tablename = 'tblAdcRegBits' + str(adc_num)
+        query = QSqlQuery(self.db)
+
+        qrytxt = "select {name}, {mask}, {shift}, {value} ,{parent} from {tn} inner join tblAdcRegisters on " \
+                 "{parent} = tblAdcRegisters.ADDRESS where tblAdcRegisters.NAME = '{rn}'" \
+            .format(name=tablename + ".NAME", mask=tablename + ".MASK", shift=tablename + ".SHIFT",
+                    value=tablename + ".VALUE", parent=tablename + ".FK_PARENT_ID", tn=tablename, rn=regname)
+        data_dict = {}
+        data = []
+        query.exec_(qrytxt)
+
+        while query.next():
+            data_dict["NAME"] = query.value(0)
+            data_dict["MASK"] = query.value(1)
+            data_dict["SHIFT"] = query.value(2)
+            data_dict["VALUE"] = query.value(3)
+            data_dict["PK_PAPRENT_ID"] = query.value(4)
+
+            data.append(data_dict)
+            data_dict = {}
+        return data
+
+    def db_adc_fetch_names_n_values(self, regname, adc_num):
+
+        query = QSqlQuery(self.db)
+        tablename = 'tblAdcRegBits' + str(adc_num)
+
+        qrytxt = "select {name}, {value} from {tn} inner join tblAdcRegisters on {parent} = tblAdcRegisters.ADDRESS " \
+                 "where tblAdcRegisters.NAME = '{rn}'".format(name=tablename + ".NAME",
+                                                              value=tablename + ".VALUE",
+                                                              tn=tablename, parent=tablename + ".FK_PARENT_ID",
+                                                              rn=regname)
+        query.exec_(qrytxt)
+        regdict = {}
+
+        while query.next():
+            regdict[query.value(0)] = query.value(1)
+
+        return regdict
+
+    # </editor-fold>
+
+    def db_dac_register_data_to_dictionary(self, regname, dac_num):
+        tablename = 'tblDacRegBits' + str(dac_num)
+        query = QSqlQuery(self.db)
+
+        qrytxt = "select {name}, {mask}, {shift}, {value} ,{parent} from {tn} inner join tblDacRegisters on " \
+                 "{parent} = tblDacRegisters.ADDRESS where tblDacRegisters.NAME = '{rn}'"\
+            .format(name=tablename + ".NAME", mask=tablename + ".MASK", shift=tablename + ".SHIFT",
+                    value = tablename + ".VALUE",parent = tablename + ".FK_PARENT_ID", tn=tablename, rn=regname)
+        data_dict = {}
+        data = []
+        query.exec_(qrytxt)
+
+        while query.next():
+            data_dict["NAME"] = query.value(0)
+            data_dict["MASK"] = query.value(1)
+            data_dict["SHIFT"] = query.value(2)
+            data_dict["VALUE"] = query.value(3)
+            data_dict["PK_PAPRENT_ID"] = query.value(4)
+
+            data.append(data_dict)
+            data_dict={}
+        return data
+
+    def db_fetch_cmd_specifications(self, cmdchar):
+        query = QSqlQuery(self.db)
+        qrytxt = "select * from tblSmbCmds WHERE CMD = '{cc}'".format(cc=cmdchar)
+        cmd_dict = {}
+        query.exec_(qrytxt)
+        fields = self.db_fetch_table_fields('tblSmbCmds')
+
+        while query.next():
+            i = 0
+            for field in fields:
+                cmd_dict[field] = query.value(i)
+                i = i + 1
+
+        return cmd_dict
+
+
+    def __del__(self):
+        self.db.close()
 
 
 def get_sqlite_ver():
@@ -87,243 +296,3 @@ def config_table(tv, tblheader, tabledata):
     tv.resizeRowsToContents()
     # enable sorting
     tv.setSortingEnabled(False)
-
-
-def db_fetch_table_data(tblname):
-    conn = sqlite3.connect("smb.db")
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM " + tblname)
-    data = cur.fetchall()
-    conn.close()
-    return data
-
-
-def db_fetch_tablenames():
-    con = sqlite3.connect('smb.db')
-    cursor = con.cursor()
-    qrytxt = ("SELECT name FROM sqlite_master "
-              "WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' "
-              "UNION ALL "
-              "SELECT name FROM sqlite_temp_master "
-              "WHERE type IN ('table','view') ORDER BY 1")
-    cursor.execute(qrytxt)
-    tblnames = cursor.fetchall()
-    return tblnames
-
-
-def db_fetch_table_fields(tblname):
-    connection = sqlite3.connect('smb.db')
-    cursor = connection.execute('select * from ' + tblname)
-    tblheader = list(map(lambda x: x[0], cursor.description))
-    return tblheader
-
-
-def db_fetch_cmd_specifications(cmdchar):
-    # Builds a dict of dicts from garden sqlite db
-    cmd_dict = {}
-    conn = sqlite3.connect("smb.db")
-    # Need to allow write permissions by others
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    qry = "select * from tblSmbCmds WHERE CMD = " + "'" +  cmdchar + "'"
-    c.execute(qry)
-    tuple_list = c.fetchall()
-    conn.close()
-    # Building dict from table rows
-    fields = db_fetch_table_fields('tblSmbCmds')
-    for item in tuple_list:
-        i = 0
-        for field in fields:
-            cmd_dict[field] = item[i]
-            i = i + 1
-
-    return cmd_dict
-
-
-# <editor-fold desc="******* Heater Queries ********">
-
-def db_update_htr_params(value, name, tablename):
-    con = sqlite3.connect("smb.db")
-    cur = con.cursor()
-    qrytxt = "UPDATE {tn} SET {n} = {v}  WHERE PK_HTR_ID = 1". \
-        format(tn=tablename, n=name, v=value)
-    cur.execute(qrytxt)
-    con.commit()
-    con.close()
-
-
-def db_fetch_heater_params(heater_num):
-    # Builds a dict of dicts from garden sqlite db
-    htr_param_dict = {}
-    conn = sqlite3.connect("smb.db")
-    # Need to allow write permissions by others
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    qry = "SELECT * FROM tblHtrParams WHERE PK_HTR_ID = " + str(heater_num)
-    c.execute(qry)
-    tuple_list = c.fetchall()
-    conn.close()
-    fields = db_fetch_table_fields('tblHtrParams')
-    for item in tuple_list:
-        i = 0
-        for field in fields:
-            htr_param_dict[field] = item[i]
-            i = i + 1
-    return htr_param_dict
-
-# </editor-fold>
-
-# <editor-fold desc="*************** DAC Queries **************">
-
-def db_dac_register_data_to_dictionary(regname):
-    # Builds a dict of dicts from garden sqlite db
-    conn = sqlite3.connect("smb.db")
-    # Need to allow write permissions by others
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    qry = "select tblDacRegBits.NAME, tblDacRegBits.MASK, tblDacRegBits.SHIFT, tblDacRegBits.VALUE," \
-          " tblDacRegBits.FK_PARENT_ID from tblDacRegBits inner join tblDacRegisters" \
-          " on tblDacRegBits.FK_PARENT_ID = tblDacRegisters.ADDRESS where tblDacRegisters.NAME = " + "'" + regname + "'"
-
-    c.execute(qry)
-    desc = c.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row))
-            for row in c]
-    conn.close()
-    return data
-
-
-# </editor-fold>
-
-# <editor-fold desc="******** ADC Queries ********************">
-
-def db_adc_fetch_params(sensor_num):
-    # Builds a dict of dicts from garden sqlite db
-    adc_param_dict = {}
-    conn = sqlite3.connect("smb.db")
-    # Need to allow write permissions by others
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    qry = "SELECT * FROM tblAdcParams WHERE PK_ADC_ID = " + str(sensor_num)
-    c.execute(qry)
-    tuple_list = c.fetchall()
-    conn.close()
-    # Building dict from table rows
-    fields = db_fetch_table_fields('tblAdcParams')
-    for item in tuple_list:
-        i = 0
-        for field in fields:
-            adc_param_dict[field] = item[i]
-            i = i + 1
-
-    return adc_param_dict
-
-
-def db_adc_fetch_sensor_constants(sns_type):
-    # Builds a dict of dicts from garden sqlite db
-    adc_sns_const_dict = {}
-    conn = sqlite3.connect("smb.db")
-    # Need to allow write permissions by others
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    qry = "SELECT * FROM tblPolynomialCostants WHERE Device = " + "'" + sns_type + "'" + " LIMIT 1"
-    c.execute(qry)
-    tuple_list = c.fetchall()
-    conn.close()
-    # Building dict from table rows
-    fields = db_fetch_table_fields('tblPolynomialCostants')
-
-    for item in tuple_list:
-        i = 0
-        for field in fields:
-            adc_sns_const_dict[field] = item[i]
-            i = i + 1
-
-    return adc_sns_const_dict
-
-
-def db_table_data_to_dictionary(tblname):
-    # Builds a dict of dicts from garden sqlite db
-    conn = sqlite3.connect("smb.db")
-    # Need to allow write permissions by others
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    qry = 'select * from ' + tblname
-    c.execute(qry)
-    desc = c.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row))
-            for row in c]
-    conn.close()
-    return data
-
-
-def db_adc_register_data_to_dictionary(regname, adc_num):
-    # Builds a dict of dicts from garden sqlite db
-    conn = sqlite3.connect("smb.db")
-    # Need to allow write permissions by others
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    tablename='tblAdcRegBits' + str(adc_num)
-    name = tablename + ".NAME"
-    shift = tablename + ".SHIFT"
-    mask = tablename + ".MASK"
-    value = tablename + ".VALUE"
-    parent = tablename + ".FK_PARENT_ID"
-
-    qry = "select " + name + ", " + mask  + ", " +  shift  + ", " + value + ", " +  parent + " from " + tablename \
-          + " inner join tblAdcRegisters" \
-          " on " + parent + " = tblAdcRegisters.ADDRESS where tblAdcRegisters.NAME = " + "'" + regname + "'"
-    # print(qry)
-    c.execute(qry)
-    desc = c.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row))
-            for row in c]
-    conn.close()
-    return data
-
-
-def db_fetch_names_n_values(tblname):
-    # Builds a dict of dicts from garden sqlite
-    conn = sqlite3.connect("smb.db")
-    # Need to allow write permissions by others
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    qry = 'select NAME, VALUE from ' + tblname
-    c.execute(qry)
-    things = [dict(itertools.zip_longest(['NAME', 'VALUE'], row)) for row in c.fetchall()]
-    regdict = {}
-    for thing in things:
-        regdict[thing['NAME']] = thing['VALUE']
-
-    return regdict
-
-
-def db_fetch_names_n_values(regname, adc_num):
-    # Builds a dict of dicts from garden sqlite
-    conn = sqlite3.connect("smb.db")
-    # Need to allow write permissions by others
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    tablename = 'tblAdcRegBits' + str(adc_num)
-    name = tablename + ".NAME"
-    shift = tablename + ".SHIFT"
-    mask = tablename + ".MASK"
-    value = tablename + ".VALUE"
-    parent = tablename + ".FK_PARENT_ID"
-
-    qry = "select " + name +  ", " + value + " from " + tablename + " inner join tblAdcRegisters on " \
-          + parent + "= tblAdcRegisters.ADDRESS where tblAdcRegisters.NAME = " + "'" + regname + "'"
-    c.execute(qry)
-    things = [dict(itertools.zip_longest(['NAME', 'VALUE'], row)) for row in c.fetchall()]
-    regdict = {}
-    for thing in things:
-        regdict[thing['NAME']] = thing['VALUE']
-
-    return regdict
-
-# </editor-fold>

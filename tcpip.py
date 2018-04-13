@@ -1,7 +1,7 @@
 import socket
 import threading
 from SMB_Cmd_handler import SmbCmd
-
+import time
 
 class TcpServer(threading.Thread):
     def __init__(self, qcommand, qtransmit):
@@ -15,11 +15,12 @@ class TcpServer(threading.Thread):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((host, port))
-        s.listen(1)
+        s.listen(2)
         conn, addr = s.accept()
 
         while True:
             # See if data recieved via TCP.
+            time.sleep(.1)
             data = conn.recv(1024)
             # Convert byte data to string
             strdata = "".join(map(chr, data))
@@ -33,11 +34,14 @@ class TcpServer(threading.Thread):
 
                 self.__enqueue_cmd(strdata)
 
-            while not self.qxmit.empty():
-                # Transmit any data in the transmit queue
-                data = self.qxmit.get()
-                self.qxmit.task_done()
-                conn.sendall(data)
+            # Transmit any data in the transmit queue
+            try:
+                data = self.qxmit.get(block=True)
+                if data:
+                    self.qxmit.task_done()
+                    conn.sendall(data)
+            except ValueError as err:
+                print(err)
 
         conn.close()
 

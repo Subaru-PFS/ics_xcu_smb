@@ -1,0 +1,1353 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <author>Joe Orndorff</author>
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>974</width>
+    <height>686</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Sensor Monitor Board</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QTabWidget" name="tabMain">
+    <property name="geometry">
+     <rect>
+      <x>50</x>
+      <y>20</y>
+      <width>581</width>
+      <height>611</height>
+     </rect>
+    </property>
+    <property name="baseSize">
+     <size>
+      <width>0</width>
+      <height>0</height>
+     </size>
+    </property>
+    <property name="currentIndex">
+     <number>1</number>
+    </property>
+    <widget class="QWidget" name="tabReadings">
+     <attribute name="title">
+      <string>Take Readings</string>
+     </attribute>
+     <widget class="QPushButton" name="btnReadAdcCounts">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>60</y>
+        <width>131</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Read A/D Counts</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnReadSensorResistances">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>150</y>
+        <width>131</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Read RTD 
+Resistances</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnReadSenorVolts">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>100</y>
+        <width>131</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Read RTD
+Voltages</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnReadAllTemps">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>10</y>
+        <width>131</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Read RTD
+Temperatures</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnReadHumidity">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>300</y>
+        <width>131</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Read Humidity</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnRadRefVolts">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>200</y>
+        <width>131</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Read ADC 
+ Ref Voltages</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnReadAdcChipTemps">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>250</y>
+        <width>131</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Read ADC 
+Chip Temperatures</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tabAdcConfig">
+     <attribute name="title">
+      <string>ADC Config</string>
+     </attribute>
+     <widget class="QGroupBox" name="grpAdcs">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>20</y>
+        <width>91</width>
+        <height>261</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Select ADCs</string>
+      </property>
+      <property name="checkable">
+       <bool>false</bool>
+      </property>
+      <widget class="QCheckBox" name="chkAdc1">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>20</y>
+         <width>70</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 1</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc2">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>40</y>
+         <width>70</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 2</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc3">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>60</y>
+         <width>70</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 3</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc4">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>80</y>
+         <width>71</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 4</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc8">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>160</y>
+         <width>71</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 8</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc5">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>100</y>
+         <width>70</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 5</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc7">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>140</y>
+         <width>70</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 7</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc6">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>120</y>
+         <width>70</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 6</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc12">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>240</y>
+         <width>71</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 12</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc9">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>180</y>
+         <width>70</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 9</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc11">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>220</y>
+         <width>70</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 11</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkAdc10">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>200</y>
+         <width>70</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>ADC 10</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QComboBox" name="cboExciationCurrent">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>50</y>
+        <width>121</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>NONE</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>50uA</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>100uA</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>250uA</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>500uA</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>1mA</string>
+       </property>
+      </item>
+     </widget>
+     <widget class="QLabel" name="lblCboExcitationCurent">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>30</y>
+        <width>121</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Excitation Current</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblCboAdcPostFilter">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>140</y>
+        <width>121</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Select ADC Post Filter</string>
+      </property>
+     </widget>
+     <widget class="QComboBox" name="cboSelectAdcPostFilter">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>160</y>
+        <width>121</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>47dB</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>62dB</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>86dB</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>92dB</string>
+       </property>
+      </item>
+     </widget>
+     <widget class="QLabel" name="lblCboAdcSincFilter">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>90</y>
+        <width>121</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Select ADC Sinc Filter</string>
+      </property>
+     </widget>
+     <widget class="QComboBox" name="cboSelectAdcSincFilter">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>110</y>
+        <width>121</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string extracomment="fast settling filter using the sinc 3 filter. The sinc 3 filter is followed by an averaging block, which results in a settling time equal to the conversion time. In full power and mid power modes, averaging by 16 occurs whereas averaging by 8 occurs in low power mode.">Sinc4</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sinc3</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sinc4 Fast</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sinc3 Fast</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Post Filter</string>
+       </property>
+      </item>
+     </widget>
+     <widget class="QCheckBox" name="chkRej60">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>200</y>
+        <width>111</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Reject 60 Hz</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblCboAdcFilterDataRate">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>230</y>
+        <width>191</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Select Filter Data Rate (1 to 2047)</string>
+      </property>
+     </widget>
+     <widget class="QSpinBox" name="spinAdcFilterDataRate">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>250</y>
+        <width>121</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="minimum">
+       <number>1</number>
+      </property>
+      <property name="maximum">
+       <number>2047</number>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetFilterDataRate">
+      <property name="geometry">
+       <rect>
+        <x>250</x>
+        <y>250</y>
+        <width>61</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tabHeaterLoops">
+     <attribute name="title">
+      <string>HeaterLoops</string>
+     </attribute>
+     <widget class="QPushButton" name="btnReadLoop1Settings">
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>20</y>
+        <width>151</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Read Loop 1 Settings</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnReadLoop2Settings">
+      <property name="geometry">
+       <rect>
+        <x>390</x>
+        <y>20</y>
+        <width>151</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Read Loop 2 Settings</string>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="SpinDblPterm1">
+      <property name="geometry">
+       <rect>
+        <x>130</x>
+        <y>80</y>
+        <width>101</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblProportional1">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>80</y>
+        <width>111</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Proportional(0 to 100)</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetPterm1">
+      <property name="geometry">
+       <rect>
+        <x>240</x>
+        <y>80</y>
+        <width>41</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblIntegral1">
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>110</y>
+        <width>91</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Integral (0 to 100)</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetIterm1">
+      <property name="geometry">
+       <rect>
+        <x>240</x>
+        <y>110</y>
+        <width>41</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="SpinDblIterm1">
+      <property name="geometry">
+       <rect>
+        <x>130</x>
+        <y>110</y>
+        <width>101</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetDterm1">
+      <property name="geometry">
+       <rect>
+        <x>240</x>
+        <y>140</y>
+        <width>41</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblDerivative1">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>140</y>
+        <width>101</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Derivative (0 to 100)</string>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="SpinDblDterm1">
+      <property name="geometry">
+       <rect>
+        <x>130</x>
+        <y>140</y>
+        <width>101</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblSelLoopSns1">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>180</y>
+        <width>101</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Select Loop Sensor</string>
+      </property>
+     </widget>
+     <widget class="QComboBox" name="cboSelLoopSns1">
+      <property name="geometry">
+       <rect>
+        <x>130</x>
+        <y>180</y>
+        <width>91</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>Sensor 1</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 2</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 3</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 4</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 5</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 6</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 7</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 8</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 9</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 10</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 11</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 12</string>
+       </property>
+      </item>
+     </widget>
+     <widget class="QDoubleSpinBox" name="SpinDblSetPoint1">
+      <property name="geometry">
+       <rect>
+        <x>130</x>
+        <y>220</y>
+        <width>101</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="minimum">
+       <double>-273.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>500.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblSetPoint1">
+      <property name="geometry">
+       <rect>
+        <x>60</x>
+        <y>220</y>
+        <width>61</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set Point (K)</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetSp1">
+      <property name="geometry">
+       <rect>
+        <x>240</x>
+        <y>220</y>
+        <width>41</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblHtrCruuent1">
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>250</y>
+        <width>91</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Heater Current (A)</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetHtrCurrent1">
+      <property name="geometry">
+       <rect>
+        <x>240</x>
+        <y>250</y>
+        <width>41</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="SpinHtrCurrent1">
+      <property name="geometry">
+       <rect>
+        <x>130</x>
+        <y>250</y>
+        <width>101</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="decimals">
+       <number>3</number>
+      </property>
+      <property name="maximum">
+       <double>0.100000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>0.001000000000000</double>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="radDisabled1">
+      <property name="geometry">
+       <rect>
+        <x>130</x>
+        <y>300</y>
+        <width>82</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Disabled</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+      <attribute name="buttonGroup">
+       <string notr="true">groupHtrCtl</string>
+      </attribute>
+     </widget>
+     <widget class="QRadioButton" name="radHtrCurrent1">
+      <property name="geometry">
+       <rect>
+        <x>130</x>
+        <y>320</y>
+        <width>82</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Current</string>
+      </property>
+      <attribute name="buttonGroup">
+       <string notr="true">groupHtrCtl</string>
+      </attribute>
+     </widget>
+     <widget class="QRadioButton" name="radPid1">
+      <property name="geometry">
+       <rect>
+        <x>130</x>
+        <y>340</y>
+        <width>82</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>PID</string>
+      </property>
+      <attribute name="buttonGroup">
+       <string notr="true">groupHtrCtl</string>
+      </attribute>
+     </widget>
+     <widget class="QDoubleSpinBox" name="SpinDblDterm2">
+      <property name="geometry">
+       <rect>
+        <x>410</x>
+        <y>140</y>
+        <width>101</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblIntegral1_2">
+      <property name="geometry">
+       <rect>
+        <x>310</x>
+        <y>110</y>
+        <width>91</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Integral (0 to 100)</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblProportional1_2">
+      <property name="geometry">
+       <rect>
+        <x>300</x>
+        <y>80</y>
+        <width>111</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Proportional(0 to 100)</string>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="radPid2">
+      <property name="geometry">
+       <rect>
+        <x>410</x>
+        <y>340</y>
+        <width>82</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>PID</string>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="SpinDblSetPoint2">
+      <property name="geometry">
+       <rect>
+        <x>410</x>
+        <y>220</y>
+        <width>101</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="minimum">
+       <double>-273.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>500.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="SpinDblIterm2">
+      <property name="geometry">
+       <rect>
+        <x>410</x>
+        <y>110</y>
+        <width>101</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblSetPoint1_2">
+      <property name="geometry">
+       <rect>
+        <x>340</x>
+        <y>220</y>
+        <width>61</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set Point (K)</string>
+      </property>
+     </widget>
+     <widget class="QComboBox" name="cboSelLoopSns2">
+      <property name="geometry">
+       <rect>
+        <x>410</x>
+        <y>180</y>
+        <width>91</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>Sensor 1</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 2</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 3</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 4</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 5</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 6</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 7</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 8</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 9</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 10</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 11</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Sensor 12</string>
+       </property>
+      </item>
+     </widget>
+     <widget class="QLabel" name="lblHtrCruuent1_2">
+      <property name="geometry">
+       <rect>
+        <x>310</x>
+        <y>250</y>
+        <width>91</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Heater Current (A)</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetHtrCurrent2">
+      <property name="geometry">
+       <rect>
+        <x>520</x>
+        <y>250</y>
+        <width>41</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblDerivative1_2">
+      <property name="geometry">
+       <rect>
+        <x>300</x>
+        <y>140</y>
+        <width>101</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Derivative (0 to 100)</string>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="SpinDblPterm2">
+      <property name="geometry">
+       <rect>
+        <x>410</x>
+        <y>80</y>
+        <width>101</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="radDisabled2">
+      <property name="geometry">
+       <rect>
+        <x>410</x>
+        <y>300</y>
+        <width>82</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Disabled</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="SpinHtrCurrent2">
+      <property name="geometry">
+       <rect>
+        <x>410</x>
+        <y>250</y>
+        <width>101</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="decimals">
+       <number>3</number>
+      </property>
+      <property name="maximum">
+       <double>0.100000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>0.001000000000000</double>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="radHtrCurrent2">
+      <property name="geometry">
+       <rect>
+        <x>410</x>
+        <y>320</y>
+        <width>82</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Current</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetDterm2">
+      <property name="geometry">
+       <rect>
+        <x>520</x>
+        <y>140</y>
+        <width>41</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetPterm2">
+      <property name="geometry">
+       <rect>
+        <x>520</x>
+        <y>80</y>
+        <width>41</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetSp2">
+      <property name="geometry">
+       <rect>
+        <x>520</x>
+        <y>220</y>
+        <width>41</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="lblSelLoopSns1_2">
+      <property name="geometry">
+       <rect>
+        <x>300</x>
+        <y>180</y>
+        <width>101</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Select Loop Sensor</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetIterm2">
+      <property name="geometry">
+       <rect>
+        <x>520</x>
+        <y>110</y>
+        <width>41</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set</string>
+      </property>
+     </widget>
+     <widget class="Line" name="line">
+      <property name="geometry">
+       <rect>
+        <x>280</x>
+        <y>20</y>
+        <width>20</width>
+        <height>391</height>
+       </rect>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="chkHighPowerOut1">
+      <property name="geometry">
+       <rect>
+        <x>70</x>
+        <y>460</y>
+        <width>121</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>High Power Out1</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="chkHighPowerOut2">
+      <property name="geometry">
+       <rect>
+        <x>70</x>
+        <y>480</y>
+        <width>121</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>High Power Out2</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="bthHighPowerOutStatus">
+      <property name="geometry">
+       <rect>
+        <x>70</x>
+        <y>510</y>
+        <width>91</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Read Status</string>
+      </property>
+     </widget>
+     <zorder>btnReadLoop1Settings</zorder>
+     <zorder>btnReadLoop2Settings</zorder>
+     <zorder>SpinDblPterm1</zorder>
+     <zorder>lblProportional1</zorder>
+     <zorder>btnSetPterm1</zorder>
+     <zorder>lblIntegral1</zorder>
+     <zorder>btnSetIterm1</zorder>
+     <zorder>SpinDblIterm1</zorder>
+     <zorder>btnSetDterm1</zorder>
+     <zorder>lblDerivative1</zorder>
+     <zorder>SpinDblDterm1</zorder>
+     <zorder>lblSelLoopSns1</zorder>
+     <zorder>cboSelLoopSns1</zorder>
+     <zorder>SpinDblSetPoint1</zorder>
+     <zorder>lblSetPoint1</zorder>
+     <zorder>btnSetSp1</zorder>
+     <zorder>lblHtrCruuent1</zorder>
+     <zorder>btnSetHtrCurrent1</zorder>
+     <zorder>SpinHtrCurrent1</zorder>
+     <zorder>radPid1</zorder>
+     <zorder>radHtrCurrent1</zorder>
+     <zorder>radDisabled1</zorder>
+     <zorder>SpinDblDterm2</zorder>
+     <zorder>lblIntegral1_2</zorder>
+     <zorder>lblProportional1_2</zorder>
+     <zorder>radPid2</zorder>
+     <zorder>SpinDblSetPoint2</zorder>
+     <zorder>SpinDblIterm2</zorder>
+     <zorder>lblSetPoint1_2</zorder>
+     <zorder>cboSelLoopSns2</zorder>
+     <zorder>lblHtrCruuent1_2</zorder>
+     <zorder>btnSetHtrCurrent2</zorder>
+     <zorder>lblDerivative1_2</zorder>
+     <zorder>SpinDblPterm2</zorder>
+     <zorder>radDisabled2</zorder>
+     <zorder>SpinHtrCurrent2</zorder>
+     <zorder>radHtrCurrent2</zorder>
+     <zorder>btnSetDterm2</zorder>
+     <zorder>btnSetPterm2</zorder>
+     <zorder>btnSetSp2</zorder>
+     <zorder>lblSelLoopSns1_2</zorder>
+     <zorder>btnSetIterm2</zorder>
+     <zorder>line</zorder>
+     <zorder>chkHighPowerOut1</zorder>
+     <zorder>chkHighPowerOut2</zorder>
+     <zorder>bthHighPowerOutStatus</zorder>
+    </widget>
+    <widget class="QWidget" name="tabDatabase">
+     <attribute name="title">
+      <string>Database</string>
+     </attribute>
+     <widget class="QTableView" name="tableView">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>50</y>
+        <width>501</width>
+        <height>521</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QComboBox" name="cboDatabaseTableNames">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>10</y>
+        <width>301</width>
+        <height>22</height>
+       </rect>
+      </property>
+     </widget>
+    </widget>
+   </widget>
+   <widget class="QTextBrowser" name="txtDisplay">
+    <property name="geometry">
+     <rect>
+      <x>640</x>
+      <y>40</y>
+      <width>291</width>
+      <height>591</height>
+     </rect>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+ <buttongroups>
+  <buttongroup name="groupHtrCtl"/>
+ </buttongroups>
+</ui>
