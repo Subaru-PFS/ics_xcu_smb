@@ -1,14 +1,16 @@
 import natsort
-from PyQt4 import QtCore
-from PyQt4 import QtGui
-from PyQt4.QtCore import pyqtSlot
+# from PyQt5 import QtCore
+# from PyQt5 import QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import pyqtSlot
 import Gbl
 import SmbMainGui
 import re
 from SMB_Cmd_handler import SmbCmd
 from db import config_table
 
-class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
+
+class MainWindow(QtWidgets.QMainWindow, SmbMainGui.Ui_MainWindow):
 
     tlm = Gbl.telemetry
 
@@ -24,8 +26,6 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
         self.__read_loop1_settings()
         self.tabMain.setCurrentIndex(0)
 
-
-
         tblnames = self.db.db_fetch_tablenames()
 
         for i in range(len(tblnames)):
@@ -33,31 +33,30 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
             self.cboDatabaseTableNames.addItem(line)
 
     def __gui_delegates(self):
-        self.connect(self.btnReadAllTemps, QtCore.SIGNAL("released()"), self.__read_adc_temps)
-        self.connect(self.btnReadAdcCounts, QtCore.SIGNAL("released()"), self.__read_adc_counts)
-        self.connect(self.btnReadSenorVolts, QtCore.SIGNAL("released()"), self.__read_sns_volts)
-        self.connect(self.btnReadSensorResistances, QtCore.SIGNAL("released()"), self.__read_sns_ohms)
-        self.connect(self.btnReadHumidity, QtCore.SIGNAL("released()"), self.__read_humidity)
-        self.connect(self.btnRadRefVolts, QtCore.SIGNAL("released()"), self.__read_adc_ref_volts)
-        self.connect(self.btnReadAdcChipTemps, QtCore.SIGNAL("released()"), self.__read_adc_chip_temps)
-        self.connect(self.btnReadLoop1Settings, QtCore.SIGNAL("released()"), self.__read_loop1_settings)
-        self.connect(self.btnSetPterm1, QtCore.SIGNAL("released()"), self.__set_pterm1)
-        self.connect(self.btnSetIterm1, QtCore.SIGNAL("released()"), self.__set_i_term1)
-        self.connect(self.btnSetDterm1, QtCore.SIGNAL("released()"), self.__set_d_term1)
-        self.connect(self.cboSelLoopSns1, QtCore.SIGNAL("activated(int)"), self.__set_loop_sensor1)
-        self.connect(self.btnSetSp1, QtCore.SIGNAL("released()"), self.__set_setpt1)
-        self.connect(self.btnSetHtrCurrent1, QtCore.SIGNAL("released()"), self.__set_htr_current1)
-        self.connect(self.groupHtrCtl, QtCore.SIGNAL("buttonReleased(QAbstractButton *)"), self.__set_htr_mode1)
-        self.connect(self.cboDatabaseTableNames, QtCore.SIGNAL("activated(int)"), self.__read_tabledata_from_db)
-        # self.connect(self.spinAdcFilterDataRate, QtCore.SIGNAL("valueChanged(int)"), self.__adc_set_filter_rate)
-        self.connect(self.btnSetFilterDataRate, QtCore.SIGNAL("released()"), self.__adc_set_filter_rate)
-        self.connect(self.cboExciationCurrent, QtCore.SIGNAL("activated(int)"), self.__adc_set_excitation_current)
-        self.connect(self.cboSelectAdcSincFilter, QtCore.SIGNAL("activated(int)"), self.__adc_set_sync_filter)
+        self.btnReadAllTemps.released.connect(self.__read_adc_temps)
+        self.btnReadAdcCounts.released.connect(self.__read_adc_counts)
+        self.btnReadSenorVolts.released.connect(self.__read_sns_volts)
+        self.btnReadSensorResistances.released.connect(self.__read_sns_ohms)
+        self.btnReadHumidity.released.connect(self.__read_humidity)
+        self.btnRadRefVolts.released.connect(self.__read_adc_ref_volts)
+        self.btnReadAdcChipTemps.released.connect(self.__read_adc_chip_temps)
+        self.btnReadLoop1Settings.released.connect(self.__read_loop1_settings)
+        self.btnSetPterm1.released.connect(self.__set_pterm1)
+        self.btnSetIterm1.released.connect(self.__set_i_term1)
+        self.btnSetDterm1.released.connect(self.__set_d_term1)
+        self.cboSelLoopSns1.currentIndexChanged.connect(self.__set_loop_sensor1)
+        self.btnSetSp1.released.connect(self.__set_setpt1)
+        self.btnSetHtrCurrent1.released.connect(self.__set_htr_current1)
+        self.groupHtrCtl.buttonReleased.connect(self.__set_htr_mode1)
+        self.cboDatabaseTableNames.currentIndexChanged.connect(self.__read_tabledata_from_db)
+        self.btnSetFilterDataRate.released.connect(self.__adc_set_filter_rate)
+        self.cboExciationCurrent.currentIndexChanged.connect(self.__adc_set_excitation_current)
+        self.cboSelectAdcSincFilter.currentIndexChanged.connect(self.__adc_set_sync_filter)
 
     def __adc_set_sync_filter(self):
-        value=self.cboSelectAdcSincFilter()
-        i=1
-        for checkbox in self.grpAdcs.findChildren(QtGui.QCheckBox):
+        value = self.cboSelectAdcSincFilter()
+        i = 1
+        for checkbox in self.grpAdcs.findChildren(QtWidgets.QCheckBox):
             if checkbox.isChecked() is True:
                 cmdtxt = '~Q, {adc}, {v}'.format(adc=i, v=value)
                 self.__enqueue_cmd(cmdtxt)
@@ -67,7 +66,7 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
         value = self.cboExciationCurrent.currentIndex()
 
         i = 1
-        for checkbox in self.grpAdcs.findChildren(QtGui.QCheckBox):
+        for checkbox in self.grpAdcs.findChildren(QtWidgets.QCheckBox):
             if checkbox.isChecked() is True:
                 # self.adcs[i].adc_set_exciatiation_current(value)
                 cmdtxt = '~X, {adc}, {v}'.format(adc=i, v=value)
@@ -75,10 +74,9 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
                 self.__enqueue_cmd(cmdtxt)
             i += 1
 
-
     def __adc_set_filter_rate(self):
-        i=0
-        for checkbox in self.grpAdcs.findChildren(QtGui.QCheckBox):
+        i = 0
+        for checkbox in self.grpAdcs.findChildren(QtWidgets.QCheckBox):
             if checkbox.isChecked() is True:
                 self.adcs[i].adc_set_filter_rate(self.spinAdcFilterDataRate.value())
                 i += 1
@@ -88,11 +86,11 @@ class MainWindow(QtGui.QMainWindow, SmbMainGui.Ui_MainWindow):
 
     def __read_tabledata_from_db(self):
         tblname = self.cboDatabaseTableNames.currentText()
-        tabledata =  self.db.db_fetch_table_data(tblname)
+        tabledata = self.db.db_fetch_table_data(tblname)
         tblheader = self.db.db_fetch_table_fields(tblname)
         self.table = config_table(self.tableView, tblheader, tabledata)
 
-    @pyqtSlot(QtGui.QAbstractButton)
+    @pyqtSlot(QtWidgets.QAbstractButton)
     def __set_htr_mode1(self, button_or_id):
         if button_or_id.text() == 'Disabled':
             value = 0

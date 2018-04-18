@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import sys
-from PyQt4 import QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 from SmbGuiWindow import MainWindow
 from tasks_loop import DoTasks
 from tcpip import TcpServer
@@ -34,7 +34,7 @@ def main():
     t2 = DoTasks(tlm, adcs, heaters, qcmd, qxmit)
     t2.start()
 
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     main_window = MainWindow(db, adcs, heaters, qcmd)
     main_window.show()
     app.exec_()
