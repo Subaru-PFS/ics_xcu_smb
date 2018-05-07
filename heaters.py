@@ -109,10 +109,16 @@ class PidHeater(object):
         self._heater_current = htr_param_dict['htr_current']
 
     def set_htr_mode(self, mode):
-        if mode == 'Disabled':
-            pass
-        elif mode == 'current':
-            pass
+        if mode == 0:
+            self.htr_enable_heater_current(False)
+            self.heater_mode = 0
+        elif mode == 1:
+            self.htr_enable_heater_current(True)
+            self.heater_mode = 1
+        elif mode == 2:
+            self.htr_enable_heater_current(True)
+            self.heater_mode = 2
+        self.db.db_update_htr_params(self.heater_mode, 'mode', self._heater_num)
 
     def htr_enable_heater_current(self, state):
         # Select all four dac channels.
@@ -162,6 +168,9 @@ class PidHeater(object):
             self.select_one_dac('d')
             hexval = int(float(0xffff) / .024 * (current - .072))
             self.dac.dac_write_dac_data_reg(hexval)
+
+        self._heater_current = current
+        self.db.db_update_htr_params(current, 'htr_current', self._heater_num)
 
     def set_all_currents_to_zero(self):
         dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
@@ -231,8 +240,6 @@ class PidHeater(object):
 
         return self.pid_bounds_check(mv)
 
-
     # </editor-fold>
 
     # TODO: Bild PID control loop.
-    # TODO: Add PID as mode option

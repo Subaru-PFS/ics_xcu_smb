@@ -6,6 +6,7 @@ from tasks_loop import DoTasks
 from tcpip import TcpServer
 import Gbl
 import ADC
+from BangBang import bang_bang as bb
 from heaters import PidHeater
 import queue
 from db import smb_db
@@ -26,16 +27,19 @@ def main():
     # Create ADC objects.
     adcs = [ADC.ADC(i, db, tlm) for i in range(2)]
 
+    # Create Bang-Bang heater objects
+    bang_bangs = [bb(i) for i in range(2)]
+
     # Setup socket thread.
-    t1 = TcpServer(qcmd, qxmit)
+    t1 = TcpServer(db, qcmd, qxmit)
     t1.start()
 
     # Get data, service PID etc.
-    t2 = DoTasks(tlm, adcs, heaters, qcmd, qxmit)
+    t2 = DoTasks(db, tlm, bang_bangs, adcs, heaters, qcmd, qxmit)
     t2.start()
 
     app = QtWidgets.QApplication(sys.argv)
-    main_window = MainWindow(db, adcs, heaters, qcmd)
+    main_window = MainWindow(db, bang_bangs, adcs, heaters, qcmd)
     main_window.show()
     app.exec_()
 

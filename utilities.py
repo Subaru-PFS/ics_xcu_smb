@@ -42,5 +42,10 @@ def temp_k_to_c(temp_k):
 
 
 def temp_k_to_f(temp_k):
-    temp_f = (temp_k*1.8 + 32)
+    temp_f = (temp_k*1.8 - 459.67)
     return temp_f
+
+
+def temp_f_to_k(temp_f):
+    temp_k = (temp_f + 459.67)*.555556
+    return temp_k

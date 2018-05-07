@@ -1,8 +1,7 @@
 import RPi.GPIO as GPIO
 
 
-class gpio(object):
-
+class io(object):
 
     def __init__(self, ):
         """ SET GPIO numbering mode to use GPIO designation, NOT pin numbers """
@@ -15,15 +14,16 @@ class gpio(object):
         self.pin_map = {
             "SDA_0": 2,
             "SCL_0": 3,
-            "GPIO4": 4,
-            "nLDAC": 6,
+            "nALARM": 4,
+            "HI_PWR_EN1": 5,
+            "HI_PWR_EN2": 6,
             "nADC_CS1": 7,
             "nADC_CS0": 8,
             "SPI0_MISO": 9,
             "SPI0_MOSI": 10,
             "SPI0_SCLK": 11,
             "DAC_CLR": 12,
-            "nALARM": 13,
+            "nLDAC": 13,
             "GPIO16": 16,
             "nDAC_CS1": 17,
             "nDAC_CS0": 18,
@@ -46,6 +46,7 @@ class gpio(object):
         # GPIO.setup(cs0, GPIO.OUT)  # SPI1-CS0
         # GPIO.output(cs0, 1)
 
+
         # Set DAC /RESET to output.
         pin = self.pin_map['nRESET']
         GPIO.setup(pin, GPIO.OUT)
@@ -64,6 +65,9 @@ class gpio(object):
         # Set DAC /Alarm to input.
         pin = self.pin_map['nALARM']
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+
+
 
     def dac_reset(self, state):
         pin = self.pin_map['nRESET']

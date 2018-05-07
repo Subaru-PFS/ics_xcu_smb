@@ -8,8 +8,5 @@ setup(
     license='',
     author='Joe Orndorff',
     author_email='joseph.d.orndorff@gmail.com',
-    description='JHU - Sensor Monitor Board Firmware'
+    description='JHU - Sensor Monitor Board Firmware', install_requires=['natsort']
 )
-#
-# setup(windows=[{"script": "PythonApplication1.py"}],
-#       options= {"py2exe": {"includes": ["sip", "PyQt5.QtCore", "PyQt5.QtGui"]}})

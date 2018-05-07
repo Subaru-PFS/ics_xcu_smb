@@ -4,7 +4,8 @@ from SMB_Cmd_handler import SmbCmd
 import time
 
 class TcpServer(threading.Thread):
-    def __init__(self, qcommand, qtransmit):
+    def __init__(self,smbdb, qcommand, qtransmit):
+        self.db = smbdb
         self.qcmd = qcommand
         self.qxmit = qtransmit
         threading.Thread.__init__(self)
@@ -46,7 +47,7 @@ class TcpServer(threading.Thread):
         conn.close()
 
     def __enqueue_cmd(self, strdata):
-        smb_cmd = SmbCmd()
+        smb_cmd = SmbCmd(self.db)
         cmd_dict = smb_cmd.parse_smb_cmd(strdata)
         if not self.qcmd.full():
             self.qcmd.put(cmd_dict)

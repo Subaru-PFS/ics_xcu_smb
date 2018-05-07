@@ -1,6 +1,4 @@
 import natsort
-# from PyQt5 import QtCore
-# from PyQt5 import QtGui
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSlot
 import Gbl
@@ -14,17 +12,20 @@ class MainWindow(QtWidgets.QMainWindow, SmbMainGui.Ui_MainWindow):
 
     tlm = Gbl.telemetry
 
-    def __init__(self, db, adcs, heaters, qcommand):
+    def __init__(self, db,bang_bangs, adcs, heaters, qcommand):
         super(MainWindow, self).__init__()
         self.db = db
         self.htrs = heaters
         self.adcs = adcs
+        self.bb = bang_bangs
         self.qcmd = qcommand
         self.setupUi(self)
         self.__gui_delegates()
         self._tablename = 'tblHtrParams'
         self.__read_loop1_settings()
         self.tabMain.setCurrentIndex(0)
+        self._board_id=self.db.db_fetch_board_id()
+        self.SpinBoardID.setValue(self._board_id)
 
         tblnames = self.db.db_fetch_tablenames()
 
@@ -52,26 +53,63 @@ class MainWindow(QtWidgets.QMainWindow, SmbMainGui.Ui_MainWindow):
         self.btnSetFilterDataRate.released.connect(self.__adc_set_filter_rate)
         self.cboExciationCurrent.currentIndexChanged.connect(self.__adc_set_excitation_current)
         self.cboSelectAdcSincFilter.currentIndexChanged.connect(self.__adc_set_sync_filter)
+        self.btnSetBoardID.released.connect(self.__set_board_ID)
+        self.chkHighPowerOut1.stateChanged.connect(self.__set_hi_power_state1)
+        self.chkHighPowerOut2.stateChanged.connect(self.__set_hi_power_state2)
+        self.cboSelectSensorType.currentIndexChanged.connect(self.__adc_select_sensor)
+        self.cboSelectTempUnit.currentIndexChanged.connect(self.__adc_select_temp_units)
 
-    def __adc_set_sync_filter(self):
-        value = self.cboSelectAdcSincFilter()
+    def __adc_select_temp_units(self):
+        value = self.cboSelectTempUnit.currentIndex()
         i = 1
         for checkbox in self.grpAdcs.findChildren(QtWidgets.QCheckBox):
             if checkbox.isChecked() is True:
-                cmdtxt = '~Q, {adc}, {v}'.format(adc=i, v=value)
-                self.__enqueue_cmd(cmdtxt)
+                self.adcs[i - 1].adc_set_temp_units(value)
+            i += 1
+
+    def __adc_select_sensor(self):
+        value=self.cboSelectSensorType.currentIndex() + 1
+        i = 1
+        for checkbox in self.grpAdcs.findChildren(QtWidgets.QCheckBox):
+            if checkbox.isChecked() is True:
+                self.adcs[i - 1].adc_set_sensor_type(value)
+            i += 1
+
+    def __set_hi_power_state1(self):
+        if self.chkHighPowerOut1.isChecked() == True:
+            self.bb[0].power_on_output()
+            print("BangBang 1 activated")
+        else:
+            self.bb[0].power_off_output()
+            print("BangBang 1 deactivated")
+
+    def __set_hi_power_state2(self):
+        if self.chkHighPowerOut2.isChecked() == True:
+            self.bb[1].power_on_output()
+            print("BangBang 2 activated")
+        else:
+            self.bb[1].power_off_output()
+            print("BangBang 2 deactivated")
+
+    def __set_board_ID(self):
+        board_id = self.SpinBoardID.value()
+        self.db.db_update_board_id(board_id)
+
+
+    def __adc_set_sync_filter(self):
+        value = self.cboSelectAdcSincFilter.currentIndex()
+        i = 1
+        for checkbox in self.grpAdcs.findChildren(QtWidgets.QCheckBox):
+            if checkbox.isChecked() is True:
+                self.adcs[i - 1].set_filter_type(value)
             i += 1
 
     def __adc_set_excitation_current(self):
         value = self.cboExciationCurrent.currentIndex()
-
-        i = 1
+        i = 0
         for checkbox in self.grpAdcs.findChildren(QtWidgets.QCheckBox):
             if checkbox.isChecked() is True:
-                # self.adcs[i].adc_set_exciatiation_current(value)
-                cmdtxt = '~X, {adc}, {v}'.format(adc=i, v=value)
-                # print(cmdtxt)
-                self.__enqueue_cmd(cmdtxt)
+                self.adcs[i].set_exciatation_current(value)
             i += 1
 
     def __adc_set_filter_rate(self):
@@ -80,9 +118,7 @@ class MainWindow(QtWidgets.QMainWindow, SmbMainGui.Ui_MainWindow):
             if checkbox.isChecked() is True:
                 self.adcs[i].adc_set_filter_rate(self.spinAdcFilterDataRate.value())
                 i += 1
-                # self.__enqueue_cmd()
 
-        pass
 
     def __read_tabledata_from_db(self):
         tblname = self.cboDatabaseTableNames.currentText()
@@ -92,37 +128,22 @@ class MainWindow(QtWidgets.QMainWindow, SmbMainGui.Ui_MainWindow):
 
     @pyqtSlot(QtWidgets.QAbstractButton)
     def __set_htr_mode1(self, button_or_id):
+        value=0
         if button_or_id.text() == 'Disabled':
-            value = 0
-            self.__enqueue_cmd("~L,1,0")
-
+            value=0
         elif button_or_id.text() == 'Current':
-            value = 1
-            # Queue set mode Current command (L).
-            self.__enqueue_cmd("~L,1,1")
-
+            value=1
         elif button_or_id.text() == 'PID':
             value = 2
-            # Queue set mode PID command (L).
-            self.__enqueue_cmd("~L,1,2")
         else:
-            value = 0
-        self.htrs[0].heater_mode = value
-        self.db.db_update_htr_params(value, 'mode', 1)
+            value=0
+
+        self.htrs[0].set_htr_mode(value)
 
     def __set_htr_current1(self):
         value = self.SpinHtrCurrent1.value()
-        self.htrs[0].heater_current = value
         self.txtDisplay.append("Expected Htr Voltage = {0:3.3f}V".format(value * 212.25))
-        self.db.db_update_htr_params(value, 'htr_current', 1)
-        self.__enqueue_cmd("~V,1," + str(value))
-
-    def __enqueue_cmd(self, strdata):
-        smb_cmd = SmbCmd(self.db)
-        cmd_dict = smb_cmd.parse_smb_cmd(strdata)
-        if not self.qcmd.full():
-            self.txtDisplay.append(strdata)
-            self.qcmd.put(cmd_dict)
+        self.htrs[0].htr_set_heater_current(value)
 
     def __set_setpt1(self):
         value = self.SpinDblSetPoint1.value()

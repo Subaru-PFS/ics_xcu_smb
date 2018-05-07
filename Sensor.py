@@ -1,83 +1,99 @@
+
+
 class sensor(object):
-    def __init__(self):
-        self._const_0 = 0.0
-        self._const_1 = 0.0
-        self._const_2 = 0.0
-        self._const_3 = 0.0
-        self._const_4 = 0.0
-        self._const_5 = 0.0
-        self._const_6 = 0.0
-        self._const_7 = 0.0
-        self._sensor_type = 'PT1000'
+    def __init__(self, smbdb, sns_type_id):
+        self.db = smbdb
+        self.sns_id = sns_type_id
+        const_dict = self.db.db_adc_fetch_sensor_constants(self.sns_id)
+        self._c0 = const_dict['C0']
+        self._c1 = const_dict['C1']
+        self._c2 = const_dict['C2']
+        self._c3 = const_dict['C3']
+        self._c4 = const_dict['C4']
+        self._c5 = const_dict['C5']
+        self._c6 = const_dict['C6']
+        self._c7 = const_dict['C7']
+        self._device = const_dict['Device']
+
+        self.c0 = self._c0
+        self.c1 = self._c1
+        self.c2 = self._c2
+        self.c3 = self._c3
+        self.c4 = self._c4
+        self.c5 = self._c5
+        self.c6 = self._c6
+        self.c7 = self._c7
+
+
 
     @property
     def sensor_type(self):
-        return self._sensor_type
+        return self._device
 
     @sensor_type.setter
     def sensor_type(self, value):
-        self._sensor_type = value
+        self._device = value
 
     @property
-    def const_0(self):
-        return self._const_0
+    def c0(self):
+        return self._c0
 
-    @const_0.setter
-    def const_0(self, value):
-        self._const_0 = value
-
-    @property
-    def const_1(self):
-        return self._const_1
-
-    @const_1.setter
-    def const_1(self, value):
-        self._const_1 = value
+    @c0.setter
+    def c0(self, value):
+        self._c0 = value
 
     @property
-    def const_2(self):
-        return self._const_2
+    def c1(self):
+        return self._c1
 
-    @const_2.setter
-    def const_2(self, value):
-        self._const_2 = value
-
-    @property
-    def const_3(self):
-        return self._const_3
-
-    @const_3.setter
-    def const_3(self, value):
-        self._const_3 = value
+    @c1.setter
+    def c1(self, value):
+        self._c1 = value
 
     @property
-    def const_4(self):
-        return self._const_4
+    def c2(self):
+        return self._c2
 
-    @const_4.setter
-    def const_4(self, value):
-        self._const_4 = value
-
-    @property
-    def const_5(self):
-        return self._const_5
-
-    @const_5.setter
-    def const_5(self, value):
-        self._const_5 = value
+    @c2.setter
+    def c2(self, value):
+        self._c2 = value
 
     @property
-    def const_6(self):
-        return self._const_6
+    def c3(self):
+        return self._c3
 
-    @const_6.setter
-    def const_6(self, value):
-        self._const_6 = value
+    @c3.setter
+    def c3(self, value):
+        self._c3 = value
 
     @property
-    def const_7(self):
-        return self._const_7
+    def c4(self):
+        return self._c4
 
-    @const_7.setter
-    def const_7(self, value):
-        self._const_7 = value
+    @c4.setter
+    def c4(self, value):
+        self._c4 = value
+
+    @property
+    def c5(self):
+        return self._c5
+
+    @c5.setter
+    def c5(self, value):
+        self._c5 = value
+
+    @property
+    def c6(self):
+        return self._c6
+
+    @c6.setter
+    def c6(self, value):
+        self._c6 = value
+
+    @property
+    def c7(self):
+        return self._c7
+
+    @c7.setter
+    def c7(self, value):
+        self._c7 = value

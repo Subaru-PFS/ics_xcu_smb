@@ -3,8 +3,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtSql import *
 
-# import itertools
-
 
 class smb_db(object):
 
@@ -96,26 +94,11 @@ class smb_db(object):
 
     # <editor-fold desc="******** ADC Queries ********************">
 
-    def db_adc_update_register_field(self, field_name, sns_num, value):
+    def db_update_adc_params(self, value, name, adc_num):
         query = QSqlQuery(self.db)
-        qrytxt = "UPDATE tblAdcRegBits{sn} SET value = {v} " \
-                 "WHERE NAME = '{rf}'".format(sn=sns_num, v=value, rf=field_name)
+        qrytxt = "UPDATE tblAdcParams SET {n} = {v}  WHERE PK_ADC_ID = {an}". \
+            format(n=name, v=value, an=adc_num)
         query.exec_(qrytxt)
-
-    def db_adc_fetch_sensor_constants(self, sns_type):
-        adc_sns_const_dict = {}
-        query = QSqlQuery(self.db)
-        qrytxt = "SELECT * FROM tblPolynomialCostants WHERE Device = '{st}' LIMIT 1".format(st=sns_type)
-        query.exec_(qrytxt)
-
-        fields = self.db_fetch_table_fields('tblPolynomialCostants')
-        while query.next():
-            i = 0
-            for field in fields:
-                adc_sns_const_dict[field] = query.value(i)
-                i = i + 1
-
-        return adc_sns_const_dict
 
     def db_adc_fetch_params(self, sensor_num):
         adc_param_dict = {}
@@ -130,6 +113,28 @@ class smb_db(object):
                 i = i + 1
 
         return adc_param_dict
+
+    def db_adc_update_register_field(self, field_name, sns_num, value):
+        query = QSqlQuery(self.db)
+        qrytxt = "UPDATE tblAdcRegBits{sn} SET value = {v} " \
+                 "WHERE NAME = '{rf}'".format(sn=sns_num, v=value, rf=field_name)
+        query.exec_(qrytxt)
+
+
+    def db_adc_fetch_sensor_constants(self, sns_type):
+        adc_sns_const_dict = {}
+        query = QSqlQuery(self.db)
+        qrytxt = "SELECT * FROM tblSensorData WHERE PK_DEV_ID = '{st}' LIMIT 1".format(st=sns_type)
+        query.exec_(qrytxt)
+
+        fields = self.db_fetch_table_fields('tblSensorData')
+        while query.next():
+            i = 0
+            for field in fields:
+                adc_sns_const_dict[field] = query.value(i)
+                i = i + 1
+
+        return adc_sns_const_dict
 
     def db_adc_register_data_to_dictionary(self, regname, adc_num):
         tablename = 'tblAdcRegBits' + str(adc_num)
@@ -155,7 +160,7 @@ class smb_db(object):
         return data
 
     def db_adc_fetch_names_n_values(self, regname, adc_num):
-
+        # Retrive sub register names and values for a given register.
         query = QSqlQuery(self.db)
         tablename = 'tblAdcRegBits' + str(adc_num)
 
@@ -173,6 +178,50 @@ class smb_db(object):
         return regdict
 
     # </editor-fold>
+
+    # <editor-fold desc="******************* DAC Queries *******************">
+
+    def db_dac_register_data_to_dictionary(self, regname, dac_num):
+        tablename = 'tbldacRegBits' + str(dac_num)
+        query = QSqlQuery(self.db)
+
+        qrytxt = "select {name}, {mask}, {shift}, {value} ,{parent} from {tn} inner join tbldacRegisters on " \
+                 "{parent} = tbldacRegisters.ADDRESS where tbldacRegisters.NAME = '{rn}'" \
+            .format(name=tablename + ".NAME", mask=tablename + ".MASK", shift=tablename + ".SHIFT",
+                    value=tablename + ".VALUE", parent=tablename + ".FK_PARENT_ID", tn=tablename, rn=regname)
+        data_dict = {}
+        data = []
+        query.exec_(qrytxt)
+
+        while query.next():
+            data_dict["NAME"] = query.value(0)
+            data_dict["MASK"] = query.value(1)
+            data_dict["SHIFT"] = query.value(2)
+            data_dict["VALUE"] = query.value(3)
+            data_dict["PK_PAPRENT_ID"] = query.value(4)
+
+            data.append(data_dict)
+            data_dict = {}
+        return data
+
+
+    def db_dac_fetch_names_n_values(self, regname, dac_num):
+
+        query = QSqlQuery(self.db)
+        tablename = 'tbldacRegBits' + str(dac_num)
+
+        qrytxt = "select {name}, {value} from {tn} inner join tbldacRegisters on {parent} = tbldacRegisters.ADDRESS " \
+                 "where tbldacRegisters.NAME = '{rn}'".format(name=tablename + ".NAME",
+                                                              value=tablename + ".VALUE",
+                                                              tn=tablename, parent=tablename + ".FK_PARENT_ID",
+                                                              rn=regname)
+        query.exec_(qrytxt)
+        regdict = {}
+
+        while query.next():
+            regdict[query.value(0)] = query.value(1)
+
+        return regdict
 
     def db_dac_register_data_to_dictionary(self, regname, dac_num):
         tablename = 'tblDacRegBits' + str(dac_num)
@@ -197,6 +246,8 @@ class smb_db(object):
             data_dict={}
         return data
 
+    # </editor-fold>
+
     def db_fetch_cmd_specifications(self, cmdchar):
         query = QSqlQuery(self.db)
         qrytxt = "select * from tblSmbCmds WHERE CMD = '{cc}'".format(cc=cmdchar)
@@ -212,24 +263,39 @@ class smb_db(object):
 
         return cmd_dict
 
+    def db_update_board_id(self, value):
+        query = QSqlQuery(self.db)
+        qrytxt = "UPDATE tblSmbParams SET VALUE = {v}  WHERE NAME = \'BOARD_ID\'".format(v=value)
+        query.exec_(qrytxt)
+        query.clear()
+
+    def db_update_board_swrev(self, value):
+        query = QSqlQuery(self.db)
+        qrytxt = "UPDATE tblSmbParams SET VALUE = {v}  WHERE NAME = \'SOFTWARE_REV\'".format(v=value)
+        query.exec_(qrytxt)
+        query.clear()
+
+
+    def db_fetch_board_id(self):
+        query = QSqlQuery(self.db)
+        qrytxt = "SELECT VALUE from tblSmbParams WHERE NAME= \'BOARD_ID\'"
+        query.exec_(qrytxt)
+        if query.first():
+            id = query.value(0)
+        query.clear()
+        return id
+
+    def db_software_rev(self):
+        query = QSqlQuery(self.db)
+        qrytxt = "SELECT VALUE from tblSmbParams WHERE NAME= \'SOFTWARE_REV\'"
+        query.exec_(qrytxt)
+        if query.first():
+            id = query.value(0)
+        query.clear()
+        return id
 
     def __del__(self):
         self.db.close()
-
-
-def get_sqlite_ver():
-    try:
-        con = sqlite3.connect('smb.db')
-        cur = con.cursor()
-        cur.execute('SELECT SQLITE_VERSION()')
-        data = cur.fetchone()
-        print("SQLite version: %s" % data)
-    except sqlite3.Error as e:
-        print("Error %s:" % e.args[0])
-        sys.exit(1)
-    finally:
-        if con:
-            con.close()
 
 
 class DbTableModel(QAbstractTableModel):
