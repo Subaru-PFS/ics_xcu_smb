@@ -2,10 +2,11 @@ import threading
 import time
 import natsort
 import os
+import quieres
 
 
 class DoTasks(threading.Thread):
-    def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, qcommand, qtransmit):
+    def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015, qcommand, qtransmit):
         self.db = smbdb
         self.tlm_dict = tlm_dict
         self.bb = bang_bangs
@@ -13,6 +14,7 @@ class DoTasks(threading.Thread):
         self.heaters = heaters
         self.qcmd = qcommand
         self.qxmit = qtransmit
+        self.ads1015 = ads1015
         threading.Thread.__init__(self)
 
     def run(self):
@@ -62,7 +64,7 @@ class DoTasks(threading.Thread):
 
             # fetch Heater Mode (0=Disabled, 1=Fixed Percent, 2=PID Control)
             if cmd == 'L':
-                htr_dict = self.db.db_fetch_heater_params(p1)
+                htr_dict = quieres.db_fetch_heater_params(self.db, p1)
                 value = str(htr_dict['mode'])
                 output = str("heater_mode = %s" % value)
 
@@ -86,7 +88,7 @@ class DoTasks(threading.Thread):
 
             # Read Board ID
             elif cmd == 'A':
-                value = self.db.db_fetch_board_id()
+                value = quieres.db_fetch_board_id(self.db)
                 output = str("board_id = %s" % value)
 
             # Read Hi Power output state
@@ -96,47 +98,47 @@ class DoTasks(threading.Thread):
 
             # Read Software Rev
             elif cmd == 'N':
-                value = self.db.db_software_rev()
+                value = quieres.db_software_rev(self.db)
                 output = "software_rev={0:3.3f}".format(value)
 
             # Read Temp Unit Setting (0=K 1=C 2=F).
             elif cmd == 'U':
-                value_dict = self.db.db_adc_fetch_params(p1)
+                value_dict = quieres.db_adc_fetch_params(self.db, p1)
                 output = str("Temp_unit = %s" % value_dict["temperature_unit"])
 
             # Read Sensor Type(1=PT100 2=PT1000 3=NCT_THERMISTOR)
             elif cmd == 'S':
-                value_dict = self.db.db_adc_fetch_params(p1)
+                value_dict = quieres.db_adc_fetch_params(self.db, p1)
                 output = str("sensor_type = %s" % value_dict["sensor_type"])
 
             # Read PID Proportional P factor.
             elif cmd == 'P':
-                value_dict = self.db.db_fetch_heater_params(p1)
+                value_dict = quieres.db_fetch_heater_params(self.db, p1)
                 output = str("P_term = %s" % value_dict["P"])
 
             # Read PID Integral I factor.
             elif cmd == 'I':
-                value_dict = self.db.db_fetch_heater_params(p1)
+                value_dict = quieres.db_fetch_heater_params(self.db, p1)
                 output = str("I_term = %s" % value_dict["I"])
 
             # Read PID Derivative D factor
             elif cmd == 'D':
-                value_dict = self.db.db_fetch_heater_params(p1)
+                value_dict = quieres.db_fetch_heater_params(self.db, p1)
                 output = str("D_term = %s" % value_dict["D"])
 
             # Read Heater Looop Set Point.
             elif cmd == 'W':
-                value_dict = self.db.db_fetch_heater_params(p1)
+                value_dict = quieres.db_fetch_heater_params(self.db, p1)
                 output = str("Set_pt= %s" % value_dict["set_pt"])
 
             # Read Heater Loop Control Sensor Number.
             elif cmd == 'J':
-                value_dict = self.db.db_fetch_heater_params(p1)
+                value_dict = quieres.db_fetch_heater_params(self.db, p1)
                 output = str("Ctrl Sensor = %s" % value_dict["ctrl_sensor"])
 
             # Read Heater Current (A).
             elif cmd == 'V':
-                value_dict = self.db.db_fetch_heater_params(p1)
+                value_dict = quieres.db_fetch_heater_params(self.db, p1)
                 output = str("htr_current = %s" % value_dict["htr_current"])
 
             # Read One Temp Sensor.
@@ -145,20 +147,24 @@ class DoTasks(threading.Thread):
 
             # Read Exciation Current Setting.
             elif cmd == 'X':
-                setting_dict = self.db.db_adc_fetch_names_n_values('IOCon1', p1)
+                setting_dict = quieres.db_adc_fetch_names_n_values(self.db, 'IOCon1', p1)
                 value = setting_dict['iout0']
                 output = "excitation_current_setting = %s" % value
 
             # Read Filter Type Setting.
             elif cmd == 'Q':
-                setting_dict = self.db.db_adc_fetch_names_n_values('Filter_0', p1)
+                setting_dict = quieres.db_adc_fetch_names_n_values(self.db, 'Filter_0', p1)
                 value = setting_dict['filter']
                 output = "filter_setting = %s" % value
 
             # Read sensor type connected to ADC.
             elif cmd == 'S':
-                value_dict = self.db.db_fetch_heater_params(p1)
+                value_dict = quieres.db_fetch_heater_params(self.db, p1)
                 output = str("sns_type = %s" % value_dict["sensor_type"])
+
+            # Read Bang Bang Current
+            elif cmd == "H":
+                output = self.ads1015.read_data()
 
             # Read humidity sensor
             elif cmd == "H":
@@ -191,7 +197,7 @@ class DoTasks(threading.Thread):
 
         # Store Board ID
         elif cmd == 'A':
-            self.db.db_update_board_id(p1)
+            quieres.db_update_board_id(self.db, p1)
 
         # Store Temp Unit (0=K;1=C;2=F)
         elif cmd == 'U':
@@ -212,28 +218,28 @@ class DoTasks(threading.Thread):
 
         # Heater P Setting
         elif cmd == 'P':
-            self.db.db_update_htr_params(p2, 'P', p1)
+            quieres.db_update_htr_params(self.db, p2, 'P', p1)
             self.heaters[p1-1].heater_p_term = p2
 
         # Heater I Setting
         elif cmd == 'I':
-            self.db.db_update_htr_params(p2, 'I', p1)
+            quieres.db_update_htr_params(self.db, p2, 'I', p1)
             self.heaters[p1 - 1].heater_i_term = p2
 
         # Heater D Setting
         elif cmd == 'D':
-            self.db.db_update_htr_params(p2, 'D', p1)
+            quieres.db_update_htr_params(self.db, p2, 'D', p1)
             if p1 < len(self.heaters) + 1:
                 self.heaters[p1 - 1].heater_d_term = p2
 
         # Heater Loop Control Sensor
         elif cmd == 'J':
-            self.db.db_update_htr_params(p2, 'ctrl_sensor', p1)
+            quieres.db_update_htr_params(self.db, p2, 'ctrl_sensor', p1)
             self.heaters[p1 - 1].heater_ctrl_sensor = p2
 
         # Set Heater Loop Setpoint
         elif cmd == 'W':
-            self.db.db_update_htr_params(p2, 'set_pt', p1)
+            quieres.db_update_htr_params(self.db, p2, 'set_pt', p1)
             self.heaters[p1 - 1].heater_set_pt = p2
 
         # Enable/disable High Power Output

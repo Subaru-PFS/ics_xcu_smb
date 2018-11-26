@@ -1,5 +1,5 @@
 from DAC8775 import DAC
-
+import quieres
 
 class PidHeater(object):
     """ pid_heater class """
@@ -99,7 +99,7 @@ class PidHeater(object):
     # <editor-fold desc="******************* Public Methods *******************">
 
     def config_heater_params(self):
-        htr_param_dict = self.db.db_fetch_heater_params(self._heater_num)
+        htr_param_dict = quieres.db_fetch_heater_params(self.db, self._heater_num)
         self._heater_p_term = htr_param_dict['P']
         self._heater_i_term = htr_param_dict['I']
         self._heater_d_term = htr_param_dict['D']
@@ -111,14 +111,14 @@ class PidHeater(object):
     def set_htr_mode(self, mode):
         if mode == 0:
             self.htr_enable_heater_current(False)
-            self.heater_mode = 0
+            self._heater_mode = 0
         elif mode == 1:
             self.htr_enable_heater_current(True)
-            self.heater_mode = 1
+            self._heater_mode = 1
         elif mode == 2:
             self.htr_enable_heater_current(True)
-            self.heater_mode = 2
-        self.db.db_update_htr_params(self.heater_mode, 'mode', self._heater_num)
+            self._heater_mode = 2
+        quieres.db_update_htr_params(self.db, self._heater_mode, 'mode', self._heater_num)
 
     def htr_enable_heater_current(self, state):
         # Select all four dac channels.
@@ -136,6 +136,11 @@ class PidHeater(object):
     def htr_set_heater_current(self, current):
         # Write Program DAC Data.
         self.set_all_currents_to_zero()
+
+        if current < 0:
+            current = 0
+        if current > .096:
+            current = .096
 
         if current > .024:
             self.select_one_dac('a')
@@ -169,8 +174,10 @@ class PidHeater(object):
             hexval = int(float(0xffff) / .024 * (current - .072))
             self.dac.dac_write_dac_data_reg(hexval)
 
+        # data_reg = self.dac.dac_read_dac_data_reg()
+        # print(data_reg)
         self._heater_current = current
-        self.db.db_update_htr_params(current, 'htr_current', self._heater_num)
+        quieres.db_update_htr_params(self.db, current, 'htr_current', self._heater_num)
 
     def set_all_currents_to_zero(self):
         dict_sel_dac_reg = self.dac.dac_read_register('select_dac')

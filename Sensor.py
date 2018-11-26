@@ -1,10 +1,10 @@
-
+import quieres
 
 class sensor(object):
     def __init__(self, smbdb, sns_type_id):
         self.db = smbdb
         self.sns_id = sns_type_id
-        const_dict = self.db.db_adc_fetch_sensor_constants(self.sns_id)
+        const_dict = quieres.db_adc_fetch_sensor_constants(self.db, self.sns_id)
         self._c0 = const_dict['C0']
         self._c1 = const_dict['C1']
         self._c2 = const_dict['C2']
@@ -23,8 +23,6 @@ class sensor(object):
         self.c5 = self._c5
         self.c6 = self._c6
         self.c7 = self._c7
-
-
 
     @property
     def sensor_type(self):

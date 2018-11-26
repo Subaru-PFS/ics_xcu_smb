@@ -1,0 +1,131 @@
+QMainWindow {
+    background-color: #565656;
+    padding: 0;
+    margin: 0;
+}
+
+QCheckBox {
+ background: none;
+ color: #76323f;
+
+}
+
+QCheckBox:focus {
+ color: black;
+}
+
+QLineEdit, QTextEdit {
+ border: 1px solid gray;
+
+    background: #fafafa;
+
+    color: black;
+
+ padding: 0.2em;
+ border-radius: 3px;
+}
+
+QPushButton {
+color: white;
+background: #76323f;
+
+border: 1px solid #b3b3b3;
+ border-radius: 5px;
+
+ padding: 0.1em;
+}
+
+ QPushButton:pressed {
+
+    background: qlineargradient(
+        x1: 0, y1: 1,
+        x2: 0, y2: 0,
+        stop: 0 #3783a5,
+        stop: 1 #1e698c
+    );
+}
+
+QPushButton:checked {
+    /* XXX: update */
+    background: qlineargradient(x1: 0, y1: 1, x2: 0, y2: 0,
+                    stop: 0 #77c3e5, stop: 1 #5ea9cc);
+}
+
+
+QTabWidget::tab-bar {
+    subcontrol-position: center center;
+}
+
+QTabBar {
+   background: #c09f80;
+    border: none;
+}
+
+QTabBar::tab {
+    background: #76323f;
+    border: 10px;
+    border-style: solid;
+    border-color: #76323f;
+color: white
+}
+
+
+QTabBar::tab:selected {
+    background: #c09f80;
+    border-style: solid;
+    border-color: #c09f80;
+}
+
+QTabWidget::pane {
+	background: #c09f80;
+    color: #07cec7;
+    margin: 0;
+    border: none;
+}
+
+/* XXX: need to override gradient defined earlier */
+QTabWidget::pane > QWidget
+{
+    /* XXX: move the background to ::pane? */
+    padding: 5px;
+
+    /* Horizontal gradient */
+    background: #c09f80;
+
+}
+
+QLabel {
+
+    background: none;
+   font-size: 11px;
+    text-align: right;
+    font-weight: bold;
+   color: #76323f;
+}
+
+
+QComboBox {
+        background: none;
+        border: 1px solid gray;
+        border-radius: 3px;
+        padding: 0.2em;
+        color: black;
+}
+
+QComboBox:focus {
+        border: 1px solid black;
+        color: black;
+}
+
+QComboBox::drop-down {
+ min-width: 40px;
+ max-width: 40px;
+
+    /* XXX: ??? */
+    margin: -1px;
+}
+
+QComboBox::down-arrow {
+    /* Custom dropdown symbol */
+ image: url(images/downarrow-bg.png);
+}

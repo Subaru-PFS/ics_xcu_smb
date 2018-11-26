@@ -5,7 +5,7 @@ Created on Thu Jan 25 08:38:35 2018
 @author: pi
 """
 
-
+# Global Dictionary to hold shared TLM values
 telemetry = {
     'humidity': 0.0,
     'rtd1': 0.0,
@@ -56,18 +56,6 @@ telemetry = {
     'adc_vddio10': 0.0,
     'adc_vddio11': 0.0,
     'adc_vddio12': 0.0,
-    'adc_avss1': 0.0,
-    'adc_avss2': 0.0,
-    'adc_avss3': 0.0,
-    'adc_avss4': 0.0,
-    'adc_avss5': 0.0,
-    'adc_avss6': 0.0,
-    'adc_avss7': 0.0,
-    'adc_avss8': 0.0,
-    'adc_avss9': 0.0,
-    'adc_avss10': 0.0,
-    'adc_avss11': 0.0,
-    'adc_avss12': 0.0,
     'adc_ref_volt1': 0.0,
     'adc_ref_volt2': 0.0,
     'adc_ref_volt3': 0.0,
@@ -116,4 +104,29 @@ telemetry = {
     'adc_sns_ohms10': 0.0,
     'adc_sns_ohms11': 0.0,
     'adc_sns_ohms12': 0.0,
+    'refin1': 0.0,
+    'refin2': 0.0,
+    'refin3': 0.0,
+    'refin4': 0.0,
+    'refin5': 0.0,
+    'refin6': 0.0,
+    'refin7': 0.0,
+    'refin8': 0.0,
+    'refin9': 0.0,
+    'refin10': 0.0,
+    'refin11': 0.0,
+    'refin12': 0.0,
+    'itherm1': 0.0,
+    'itherm2': 0.0,
+    'itherm3': 0.0,
+    'itherm4': 0.0,
+    'itherm5': 0.0,
+    'itherm6': 0.0,
+    'itherm7': 0.0,
+    'itherm8': 0.0,
+    'itherm9': 0.0,
+    'itherm10': 0.0,
+    'itherm11': 0.0,
+    'itherm12': 0.0,
+
 }

@@ -1,5 +1,3 @@
-import re
-
 def lo8(x):
     return x & 0xff
 
@@ -49,3 +47,16 @@ def temp_k_to_f(temp_k):
 def temp_f_to_k(temp_f):
     temp_k = (temp_f + 459.67)*.555556
     return temp_k
+
+
+def getbytes_from_reg_bits(kwargs, reg_dict):
+    write_bytes = 0x0000
+    for kword in kwargs:
+        for item in reg_dict:
+            if item["NAME"] == kword:
+                name = item["NAME"]
+                value = int(kwargs[name])
+                shift = item["SHIFT"]
+                mask = item["MASK"]
+                write_bytes = write_bytes | ((value & mask) << shift)
+    return write_bytes

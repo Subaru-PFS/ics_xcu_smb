@@ -1,47 +1,62 @@
-import spidev
+import time
+import GPIO_config
+import RPi.GPIO as GPIO
+import utilities
 
 
-class RPi3Spi(spidev.SpiDev):
+class DacSpi(object):
 
-    def __init__(self, spi_id, cs_id, mode=3, max_speed_hz = 97600, parent=None):
-        super().__init__(spi_id, cs_id)
-        self.spi_id = spi_id
-        self.cs_id = cs_id
-        self.mode = mode
-        self.max_speed_hz = max_speed_hz
-        self.open(self.spi_id, self.cs_id)
-        self.spi_initialize()
-
-    def spi_initialize(self):
-        self.no_cs = False
+    def __init__(self, idx):
+        self.idx = idx
+        self.lsbfirst = False
+        self.io = GPIO_config.io()
+        self.mosi = self.io.pin_map['SPI1_MOSI']
+        self.miso = self.io.pin_map['SPI1_MISO']
+        self.sclk = self.io.pin_map['SPI1_SCLK']
+        self.usleep = lambda x: time.sleep(x / 1000000.0)
+        self.no_cs = True
         self.bits_per_word = 8
         self.threewire = False
         self.loop = False
-        self.lsbfirst = False
 
-        """Notes on spidev
-        Unless the spi.max_speed_hz field is a value accepted by the driver, the script will fail when you run it.
-        The field can be set to these values on the raspberry pi:
+    def xfer(self, dataword):
+        ret_val = 0
+        ret_list = [0, 0, 0]
+        self.io.dac_sel(self.idx)
 
-        SPEED	SPI.MAX_SPEED_HZ VALUE
-        125.0 MHz	125000000
-        62.5 MHz	62500000
-        31.2 MHz	31200000
-        15.6 MHz	15600000
-        7.8 MHz	    7800000
-        3.9 MHz	    3900000
-        1953 kHz	1953000
-        976 kHz	    976000
-        488 kHz	    488000
-        244 kHz	    244000
-        122 kHz	    122000
-        61 kHz	    61000
-        30.5 kHz	30500
-        15.2 kHz	15200
-        7629 Hz	7629"""
+        j = 0
+        for abytes in dataword:
+            for i in range(8):
+                if abytes & 0x80:
+                    bit = 1
+                else:
+                    bit = 0
+                misobit = self.clock_dac(bit)
+                position = (j * 8) + i
+                if misobit == 1:
+                    ret_val += 2**position
+                abytes = abytes << 1 & 0xff
+            j += 1
 
-    def spi_close(self):
-        self.close()
+        self.io.dac_sel(3)
+        self.usleep(200)
+        ret_list[0] = ret_val & 0xff
+        ret_list[1] = ret_val >> 8 & 0xff
+        ret_list[2] = ret_val >> 16 & 0xff
+        ret_list[0] = utilities.reverse_bits(ret_list[0])
+        ret_list[1] = utilities.reverse_bits(ret_list[1])
+        ret_list[2] = utilities.reverse_bits(ret_list[2])
+        return ret_list
 
-    def __delete__(self, instance):
-        self.close()
+    def clock_dac(self, value=0):  # clocks a single dac bit
+        if value == 1:
+            GPIO.output(self.mosi, 1)
+        else:
+            GPIO.output(self.mosi, 0)
+        self.usleep(1)
+        GPIO.output(self.sclk, 0)
+        self.usleep(1)
+        bitval = GPIO.input(self.miso)
+        GPIO.output(self.sclk, 1)
+        self.usleep(1)
+        return bitval

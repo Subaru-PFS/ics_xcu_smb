@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ICS_SMB',
-    version='0.058',
+    version='0.75',
     packages=[''],
     url='',
     license='',

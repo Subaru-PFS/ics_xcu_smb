@@ -15,7 +15,7 @@ CmdTyp | Cmd | P1      | P1 range | P2       | P2 Range  | Description
 ~      |  U  | Sens#'s | 12 bits  | Units    | 0,1,2     | Store Temperature Units (0=K;1=C;2=F)
 ~      |  V  | DAC#    | 1 to 2   | Value    | 0 to .1   | Set Heater Current (A)
 ~      |  W  | LOOP#   | 1 to 2   | Value    | -460->500 | Set LOOP SetPoint
-~      |  X  | A/D #   | 1 to 12  | Current  | 0 to 7    | Store Excit uA (0=NONE,1=50,2=100,3=250,4=500,5=750, 6,7=1000)
+~      |  X  | A/D #   | 1 to 12  | Current  | 0 to 7    | Store Excit uA(0=NONE,1=50,2=100,3=250,4=500,5=750, 6,7=1000)
 
 - Query Commands
 CmdType| Cmd | P1      | P1 range | Returns   | Range     | Description
@@ -41,6 +41,7 @@ CmdType| Cmd | P1      | P1 range | Returns   | Range     | Description
 ?      |  t  | n/a     | n/a      | n/a       | n/a       | Read temperatures from all channels
 """
 import re
+import quieres
 
 
 class SmbCmd(object):
@@ -65,7 +66,7 @@ class SmbCmd(object):
 
         params = self.get_cmd_params(cmdparams)
 
-        cmd_dict = self.db.db_fetch_cmd_specifications(self.cmd)
+        cmd_dict = quieres.db_fetch_cmd_specifications(self.db, self.cmd)
         cmd_dict['CMD'] = self.cmd
         cmd_dict['CMD_TYPE'] = self.cmd_type
         cmd_dict['P1_DEF'] = params[0]
