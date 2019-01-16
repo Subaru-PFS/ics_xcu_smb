@@ -177,7 +177,11 @@ class AD7124(object):
         B = -a * g / 100 ** 2
         C = -a * b / 100 ** 4
 
-        temperature_c = (-A + math.sqrt(A ** 2 - 4 * B * (1 - rt / r0))) / (2 * B)
+        try:
+            temperature_c = (-A + math.sqrt(A ** 2 - 4 * B * (1 - rt / r0))) / (2 * B)
+        except ValueError:
+            self.logger.warn('conversion error for %s, sns=%s', rt, self.sns)
+            temperature_c = 100.0
         temperature_k = temperature_c + 273.15
         temperature_f = utilities.temp_k_to_f(temperature_k)
 
