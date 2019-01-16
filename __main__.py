@@ -100,8 +100,8 @@ def main():
     t1.start()
 
     # Get data, service PID etc.
-    # t2 = DoTasks(smbdb, tlm, bang_bangs, adcs, heaters, ads1015, qcmd, qxmit)
-    # t2.start()
+    t2 = DoTasks(smbdb, tlm, bang_bangs, adcs, heaters, ads1015, qcmd, qxmit)
+    t2.start()
 
     app = QtWidgets.QApplication(sys.argv)
     main_window = MainWindow(smbdb, bang_bangs, adcs, heaters, ads1015, qcmd)
