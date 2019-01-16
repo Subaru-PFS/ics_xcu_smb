@@ -1,3 +1,4 @@
+import logging
 import time
 from math import log
 from Sensor import sensor
@@ -23,7 +24,9 @@ class AD7124(object):
         global dictionary that holds updated telemetry values
      """
 
-    def __init__(self, idx, smbdb, tlm_dict, spi_obj):
+    def __init__(self, idx, smbdb, tlm_dict, spi_obj, logLevel=logging.INFO):
+        self.logger = logging.getLogger('ADC_%02d' % (idx))
+        self.logger.setLevel(logLevel)
         self.pins = GPIO_config.io()
         self.db = smbdb
         self.idx = idx  # index of ADC (0 to 11)
@@ -290,7 +293,7 @@ class AD7124(object):
                 ir8 = vr8/5620
                 self.tlm_dict[dkey] = ir8
             else:
-                print("bad channel")
+                self.logger.warn("bad channel")
                 done = True
 
             if ch_flgs[0] & ch_flgs[1] & ch_flgs[2] & ch_flgs[3] & ch_flgs[4] & ch_flgs[5] & ch_flgs[6] is True:
@@ -321,35 +324,35 @@ class AD7124(object):
         else:
             self._ref_resistor = 3920  # R2 on Rev-H
         if dict_io_ctrl_reg1 != value:
-            print('Error Reading Register')
+            self.logger.warn('Error Reading Register')
 
         # Configure IOCon2 reg
         dict_io_ctrl_reg2 = quieres.db_adc_fetch_names_n_values(self.db, 'IOCon2', self._sens_num)
         self.__adc_write_register('IOCon2', **dict_io_ctrl_reg2)
         value = self.adc_read_register_to_dict('IOCon2')
         if dict_io_ctrl_reg2 != value:
-            print('Error Reading Register')
+            self.logger.warn('Error Reading Register')
 
         # Configure Error_En reg
         dict_error_en_reg = quieres.db_adc_fetch_names_n_values(self.db, 'Error_En', self._sens_num)
         self.__adc_write_register('Error_En', **dict_error_en_reg)
         value = self.adc_read_register_to_dict('Error_En')
         if dict_error_en_reg != value:
-            print('Error Reading Register')
+            self.logger.warn('Error Reading Register')
 
         # Configure ADC_Control reg
         dict_control_reg = quieres.db_adc_fetch_names_n_values(self.db, 'ADC_Control', self._sens_num)
         self.__adc_write_register('ADC_Control', **dict_control_reg)
         value = self.adc_read_register_to_dict('ADC_Control')
         if dict_control_reg != value:
-            print('Error Reading Register')
+            self.logger.warn('Error Reading Register')
 
         # time.sleep(.1)
 
-    def adc_read_register_to_dict(self, reg_name):
+    def adc_read_register_to_dict(self, reg_name, muffleLog=False):
         reg_bit_data = quieres.db_adc_register_data_to_dictionary(self.db, reg_name, self._sens_num)
         reg_bytes = self.__search_reg_bytes_from_name(reg_name)
-        data_24 = self.__adc_read_register(reg_name, reg_bytes)
+        data_24 = self.__adc_read_register(reg_name, reg_bytes, muffleLog=muffleLog)
         data_24.pop(0)
         value = int.from_bytes(data_24, byteorder='big', signed=False)
         dict_reg = dict()
@@ -369,6 +372,7 @@ class AD7124(object):
         for val in rbytes:
             bytelist.append(val)
 
+        self.logger.debug('adc_write %02d %s 0x%04x', self.idx, reg_name, write_bytes)
         self.pins.adc_sel(self.idx)
         self.spi_obj.xfer2(bytelist)
 
@@ -378,15 +382,15 @@ class AD7124(object):
         data_8 = 0x00
         while nready is 1:
             # data_8 = self.adc_read_status_register()
-            data_8 = self.adc_read_register_to_dict('Status')
+            data_8 = self.adc_read_register_to_dict('Status', muffleLog=True)
             nready = data_8['n_rdy']
             currtime = time.time()
             if currtime - starttime > timeout_s:
-                print("timeout %f" % (currtime - starttime))
+                self.logger.warn("timeout %f" % (currtime - starttime))
                 return -1
         return data_8['ch_active']  # return current channel#
 
-    def __adc_read_register(self, reg_name, byte_len):
+    def __adc_read_register(self, reg_name, byte_len, muffleLog=False):
         regid = self.__search_reg_address_from_name(reg_name)
         regid |= self._READ_FLAG
         byte_list = [regid]
@@ -394,6 +398,9 @@ class AD7124(object):
             byte_list.append(self._DUMMY_BYTE)
         self.pins.adc_sel(self.idx)  # select ADC
         resp = self.spi_obj.xfer2(byte_list)
+        if not muffleLog:
+            self.logger.debug('adc_readreg %02d %s %s', self.idx, reg_name, ["0x%02x" % b for b in resp])
+        
         return resp
 
     def __search_reg_address_from_name(self, name):
@@ -425,7 +432,7 @@ class AD7124(object):
                     if result_dict != reg_dict:
                         raise ValueError
         except ValueError as err:
-            print(err.args)
+            self.logger.warn(err.args)
 
     def __adc_write_configurations(self):
         try:
@@ -438,7 +445,7 @@ class AD7124(object):
                     raise ValueError
 
         except ValueError as err:
-            print(err.args)
+            self.logger.warn(err.args)
 
     def __adc_reset(self):
         """ Reset the ADC """

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import logging
 import queue
 import RPi.GPIO as GPIO
 import spidev
@@ -13,12 +14,19 @@ from BangBang import bang_bang as bb
 from SmbGuiWindow import MainWindow
 from heaters import PidHeater
 from spi_bus import DacSpi
-# from tasks_loop import DoTasks
+from tasks_loop import DoTasks
 from tcpip import TcpServer
 from PyQt5.QtSql import *
 
 
 def main():
+    logging.basicConfig(datefmt = "%Y-%m-%d %H:%M:%S",
+                        format = "%(asctime)s.%(msecs)03dZ %(name)-10s %(levelno)s %(filename)s:%(lineno)d %(message)s")
+    
+    logger = logging.getLogger('smb')
+    logger.setLevel(5)
+    logger.info('starting logging!')
+    
     smbdb = QSqlDatabase.addDatabase("QSQLITE")
     smbdb.setDatabaseName("smb.db")
     if not smbdb.open():
@@ -54,14 +62,14 @@ def main():
     data1 = bus1.xfer([0x83, 0, 0x10])
     data2 = bus1.xfer([0, 0, 0])
 
-    print(data1)
-    print(data2)
+    logger.debug('data1: %s', data1)
+    logger.debug('data2: %s', data2)
     # issue read command
     data3 = bus2.xfer([0x83, 0, 0x10])
     data4 = bus2.xfer([0, 0, 0])
 
-    print(data3)
-    print(data4)
+    logger.debug('data3: %s', data3)
+    logger.debug('data4: %s', data4)
 
     # Create DAC objects.
     heaters = [PidHeater(i, smbdb, tlm) for i in range(2)]
@@ -73,6 +81,9 @@ def main():
     spi.open(spi_id, cs_id)
     spi.max_speed_hz = 7000
     spi.mode = 3
+    logger.debug('found cshigh at %s', spi.cshigh)
+    # spi.cshigh = True
+    
     # spi.no_cs = True # This used to work on the previous revision of SpiDev
 
     # Create ADC objects.

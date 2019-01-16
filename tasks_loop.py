@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 import natsort
@@ -15,6 +16,7 @@ class DoTasks(threading.Thread):
         self.qcmd = qcommand
         self.qxmit = qtransmit
         self.ads1015 = ads1015
+        self.loopTime = 0.5
         threading.Thread.__init__(self)
 
     def run(self):
@@ -29,12 +31,13 @@ class DoTasks(threading.Thread):
                 for adc in self.adcs:
                     adc.read_conversion_data()
 
-                time.sleep(.5)
+                time.sleep(self.loopTime)
 
         except KeyboardInterrupt:  # Ctrl+C pressed
             del self
 
     def process_queued_cmd(self, cmd_dict):
+        logging.warn('cmd: %s' % (cmd_dict))
         if cmd_dict['ERROR'] < 0:
             result = -1
 

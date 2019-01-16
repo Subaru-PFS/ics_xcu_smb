@@ -1,3 +1,4 @@
+import logging
 import socket
 import threading
 from SMB_Cmd_handler import SmbCmd
@@ -5,6 +6,8 @@ import time
 
 class TcpServer(threading.Thread):
     def __init__(self,smbdb, qcommand, qtransmit):
+        self.logger = logging.getLogger('smb')
+        
         self.db = smbdb
         self.qcmd = qcommand
         self.qxmit = qtransmit
@@ -18,7 +21,8 @@ class TcpServer(threading.Thread):
         s.bind((host, port))
         s.listen(2)
         conn, addr = s.accept()
-
+        self.logger.info('command connection from %s, %s' % (conn, addr))
+        
         while True:
             # See if data recieved via TCP.
             time.sleep(.1)
@@ -49,5 +53,6 @@ class TcpServer(threading.Thread):
     def __enqueue_cmd(self, strdata):
         smb_cmd = SmbCmd(self.db)
         cmd_dict = smb_cmd.parse_smb_cmd(strdata)
+        self.logger.info('cmd %s, %s' % (strdata, smb_cmd))
         if not self.qcmd.full():
             self.qcmd.put(cmd_dict)
