@@ -15,6 +15,7 @@ from SmbGuiWindow import MainWindow
 from heaters import PidHeater
 from spi_bus import DacSpi
 from tasks_loop import DoTasks
+from sensor_loop import SensorThread
 from tcpip import TcpServer
 from PyQt5.QtSql import *
 
@@ -97,8 +98,11 @@ def main():
     t1.start()
 
     # Get data, service PID etc.
-    t2 = DoTasks(smbdb, tlm, bang_bangs, adcs, heaters, ads1015, qcmd, qxmit)
+    t2 = SensorThread(smbdb, tlm, bang_bangs, adcs, heaters, ads1015)
     t2.start()
+
+    t3 = DoTasks(smbdb, tlm, bang_bangs, adcs, heaters, ads1015, qcmd, qxmit)
+    t3.start()
 
     app = QtWidgets.QApplication(sys.argv)
     main_window = MainWindow(smbdb, bang_bangs, adcs, heaters, ads1015, qcmd)

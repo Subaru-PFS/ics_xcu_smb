@@ -16,25 +16,12 @@ class DoTasks(threading.Thread):
         self.qcmd = qcommand
         self.qxmit = qtransmit
         self.ads1015 = ads1015
-        self.loopTime = 0.5
         threading.Thread.__init__(self)
 
     def run(self):
-        try:
-            while True:
-                # See if there is command to execute.
-                if not self.qcmd.empty():
-                    self.process_queued_cmd(self.qcmd.get())
-                    self.qcmd.task_done()
-
-                # Read out ADC conversion data
-                for adc in self.adcs:
-                    adc.read_conversion_data()
-
-                time.sleep(self.loopTime)
-
-        except KeyboardInterrupt:  # Ctrl+C pressed
-            del self
+        while True:
+            cmd = self.qcmd.get()
+            self.process_queued_cmd(cmd)
 
     def process_queued_cmd(self, cmd_dict):
         logging.warn('cmd: %s' % (cmd_dict))
