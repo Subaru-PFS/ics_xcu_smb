@@ -15,6 +15,7 @@ from SmbGuiWindow import MainWindow
 from heaters import PidHeater
 from spi_bus import DacSpi
 from tasks_loop import DoTasks
+from sensor_loop import SensorThread
 from tcpip import TcpServer
 from PyQt5.QtSql import *
 
@@ -81,10 +82,7 @@ def main():
     spi.open(spi_id, cs_id)
     spi.max_speed_hz = 7000
     spi.mode = 3
-    logger.debug('found cshigh at %s', spi.cshigh)
-    # spi.cshigh = True
-    
-    # spi.no_cs = True # This used to work on the previous revision of SpiDev
+    spi.cshigh = True
 
     # Create ADC objects.
     adcs = [ad7124(i, smbdb, tlm, spi) for i in range(12)]
@@ -100,8 +98,11 @@ def main():
     t1.start()
 
     # Get data, service PID etc.
-    t2 = DoTasks(smbdb, tlm, bang_bangs, adcs, heaters, ads1015, qcmd, qxmit)
+    t2 = SensorThread(smbdb, tlm, bang_bangs, adcs, heaters, ads1015)
     t2.start()
+
+    t3 = DoTasks(smbdb, tlm, bang_bangs, adcs, heaters, ads1015, qcmd, qxmit)
+    t3.start()
 
     app = QtWidgets.QApplication(sys.argv)
     main_window = MainWindow(smbdb, bang_bangs, adcs, heaters, ads1015, qcmd)

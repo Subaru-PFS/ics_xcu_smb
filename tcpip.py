@@ -1,8 +1,9 @@
 import logging
+import queue
 import socket
+import select
 import threading
 from SMB_Cmd_handler import SmbCmd
-import time
 
 class TcpServer(threading.Thread):
     def __init__(self,smbdb, qcommand, qtransmit):
@@ -20,35 +21,48 @@ class TcpServer(threading.Thread):
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((host, port))
         s.listen(2)
-        conn, addr = s.accept()
-        self.logger.info('command connection from %s, %s' % (conn, addr))
+        conn = None
         
         while True:
-            # See if data recieved via TCP.
-            time.sleep(.1)
-            data = conn.recv(1024)
-            # Convert byte data to string
-            strdata = "".join(map(chr, data))
+            sockets = [s]
+            if conn is not None:
+                sockets.append(conn)
 
-            if data:
+            # self.logger.info('listening: %s', sockets)
+            readable, writable, errored = select.select(sockets, [], [], 1.0)
+                
+            if s in readable:
+                conn, addr = s.accept()
+                self.logger.info('command connection from %s, %s' % (conn, addr))
+                continue
+                
+            if conn in readable:
+                data = conn.recv(1024)
+                # Convert byte data to string
+                data = data.decode('latin-1')
+                
+                if not data:
+                    self.logger.warn('socket %s closed', conn)
+                    conn = None
+                    continue
+                data = data.strip()
+                if not data:
+                    self.logger.warn('ignoring empty command')
+                    continue
+                    
                 # add recived cmd to the transmit queue to be echoed back
+                reply = data + '\n'
+                # conn.sendall(reply.encode('latin-1'))
+                self.__enqueue_cmd(data)
 
-                # if not self.qxmit.full():
-                #     output = strdata.rstrip() + '\n'
-                #     self.qxmit.put(output.encode('utf-8'))
-
-                self.__enqueue_cmd(strdata)
-
-            # Transmit any data in the transmit queue
-            try:
-                data = self.qxmit.get(block=True)
+                try:
+                    data = self.qxmit.get(block=True, timeout=3.0)
+                except queue.Empty:
+                    self.logger.warn('no reply to command!')
+                    continue
                 if data:
-                    self.qxmit.task_done()
-                    conn.sendall(data)
-            except ValueError as err:
-                print(err)
-
-        conn.close()
+                    data = data + '\n'
+                    conn.sendall(data.encode('latin-1'))
 
     def __enqueue_cmd(self, strdata):
         smb_cmd = SmbCmd(self.db)

@@ -8,6 +8,7 @@ import quieres
 
 class DoTasks(threading.Thread):
     def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015, qcommand, qtransmit):
+        self.logger = logging.getLogger('smb')
         self.db = smbdb
         self.tlm_dict = tlm_dict
         self.bb = bang_bangs
@@ -16,42 +17,28 @@ class DoTasks(threading.Thread):
         self.qcmd = qcommand
         self.qxmit = qtransmit
         self.ads1015 = ads1015
-        self.loopTime = 0.5
         threading.Thread.__init__(self)
 
     def run(self):
-        try:
-            while True:
-                # See if there is command to execute.
-                if not self.qcmd.empty():
-                    self.process_queued_cmd(self.qcmd.get())
-                    self.qcmd.task_done()
-
-                # Read out ADC conversion data
-                for adc in self.adcs:
-                    adc.read_conversion_data()
-
-                time.sleep(self.loopTime)
-
-        except KeyboardInterrupt:  # Ctrl+C pressed
-            del self
+        while True:
+            cmd = self.qcmd.get()
+            self.process_queued_cmd(cmd)
 
     def process_queued_cmd(self, cmd_dict):
-        logging.warn('cmd: %s' % (cmd_dict))
-        if cmd_dict['ERROR'] < 0:
-            result = -1
-
+        logging.warn('processing cmd: %s' % (cmd_dict))
+        
+        if cmd_dict['CMD_TYPE'] == '?' and cmd_dict["READ"] == 1:
+            res = self.process_read_cmd(cmd_dict)
+        elif cmd_dict['CMD_TYPE'] == '~' and cmd_dict["WRITE"] == 1:
+            res = self.process_write_cmd(cmd_dict)
         else:
-            if cmd_dict['CMD_TYPE'] == '?' and cmd_dict["READ"] == 1:
-                result = self.process_read_cmd(cmd_dict)
-            elif cmd_dict['CMD_TYPE'] == '~' and cmd_dict["WRITE"] == 1:
-                result = self.process_write_cmd(cmd_dict)
-            else:
-                cmd_dict['ERROR'] = -1
-                output = "bad command"
-                self.qxmit.put(output.encode('utf-8'))
+            cmd_dict['ERROR'] = -1
+            output = "bad command"
+            self.qxmit.put(output)
 
     def process_read_cmd(self, cmd_dict):
+        self.logger.info('processing read cmd %s', cmd_dict)
+        
         output = ''
         cmd = cmd_dict['CMD']
         p1 = cmd_dict['P1_DEF']
@@ -59,125 +46,134 @@ class DoTasks(threading.Thread):
         p1max = cmd_dict["P1_MAX"]
 
         if p1 < p1min or p1 > p1max:
-            output = "bad command"
-            self.qxmit.put(output.encode('utf-8'))
+            self.logger.info('cmd %s p1 arg is out of range', cmd)
+            output = "OUT OF RANGE"
+            self.qxmit.put(output)
             return -1
 
-        if not self.qxmit.full():
+        if self.qxmit.full():
+            self.logger.warn('qxmit full!')
+            return -1
 
-            # fetch Heater Mode (0=Disabled, 1=Fixed Percent, 2=PID Control)
-            if cmd == 'L':
-                htr_dict = quieres.db_fetch_heater_params(self.db, p1)
-                value = str(htr_dict['mode'])
-                output = str("heater_mode = %s" % value)
+        self.logger.info('executing read cmd %s', cmd)
+        
+        # fetch Heater Mode (0=Disabled, 1=Fixed Percent, 2=PID Control)
+        if cmd == 'L':
+            htr_dict = quieres.db_fetch_heater_params(self.db, p1)
+            value = str(htr_dict['mode'])
+            output = str("heater_mode = %s" % value)
 
-            # Read temperatures from all channels
-            elif cmd == 't':
-                for item in natsort.natsorted(self.tlm_dict):
-                    if 'rtd' in item:
-                        output += item + " = {0:3.3f}\r\n".format(self.tlm_dict[item])
+        # Read temperatures from all channels
+        elif cmd == 't':
+            readings = []
+            for item in natsort.natsorted(self.tlm_dict):
+                if 'rtd' in item:
+                    readings.append("%.4f" % self.tlm_dict[item])
 
-            # Read RTD Resistance at temperature
-            elif cmd == 'r':
-                for item in natsort.natsorted(self.tlm_dict):
-                    if 'adc_sns_ohms' in item:
-                        output += item + " = {0:6.1f}ohms\r\n".format(self.tlm_dict[item])
+            output = ','.join(readings)
+            self.logger.info('%s readings: %s, output: %s', cmd, readings, output)
 
-            # Read voltage at a temp sensor.
-            elif cmd == 'v':
-                for item in natsort.natsorted(self.tlm_dict):
-                    if 'adc_sns_volts' in item:
-                        output += item + " = {0:0.6f}v\r\n".format(self.tlm_dict[item])
+        # Read RTD Resistance at temperature
+        elif cmd == 'r':
+            for item in natsort.natsorted(self.tlm_dict):
+                if 'adc_sns_ohms' in item:
+                    output += item + " = {0:6.1f}ohms\r\n".format(self.tlm_dict[item])
 
-            # Read Board ID
-            elif cmd == 'A':
-                value = quieres.db_fetch_board_id(self.db)
-                output = str("board_id = %s" % value)
+        # Read voltage at a temp sensor.
+        elif cmd == 'v':
+            for item in natsort.natsorted(self.tlm_dict):
+                if 'adc_sns_volts' in item:
+                    output += item + " = {0:0.6f}v\r\n".format(self.tlm_dict[item])
 
-            # Read Hi Power output state
-            elif cmd == 'F':
-                value = self.bb[p1-1].output_state
-                output = str("output_state = %s" % value)
+        # Read Board ID
+        elif cmd == 'A':
+            value = quieres.db_fetch_board_id(self.db)
+            output = str("board_id = %s" % value)
 
-            # Read Software Rev
-            elif cmd == 'N':
-                value = quieres.db_software_rev(self.db)
-                output = "software_rev={0:3.3f}".format(value)
+        # Read Hi Power output state
+        elif cmd == 'F':
+            value = self.bb[p1-1].output_state
+            output = str("output_state = %s" % value)
 
-            # Read Temp Unit Setting (0=K 1=C 2=F).
-            elif cmd == 'U':
-                value_dict = quieres.db_adc_fetch_params(self.db, p1)
-                output = str("Temp_unit = %s" % value_dict["temperature_unit"])
+        # Read Software Rev
+        elif cmd == 'N':
+            value = quieres.db_software_rev(self.db)
+            output = "software_rev={0:3.3f}".format(value)
 
-            # Read Sensor Type(1=PT100 2=PT1000 3=NCT_THERMISTOR)
-            elif cmd == 'S':
-                value_dict = quieres.db_adc_fetch_params(self.db, p1)
-                output = str("sensor_type = %s" % value_dict["sensor_type"])
+        # Read Temp Unit Setting (0=K 1=C 2=F).
+        elif cmd == 'U':
+            value_dict = quieres.db_adc_fetch_params(self.db, p1)
+            output = str("Temp_unit = %s" % value_dict["temperature_unit"])
 
-            # Read PID Proportional P factor.
-            elif cmd == 'P':
-                value_dict = quieres.db_fetch_heater_params(self.db, p1)
-                output = str("P_term = %s" % value_dict["P"])
+        # Read Sensor Type(1=PT100 2=PT1000 3=NCT_THERMISTOR)
+        elif cmd == 'S':
+            value_dict = quieres.db_adc_fetch_params(self.db, p1)
+            output = str("sensor_type = %s" % value_dict["sensor_type"])
 
-            # Read PID Integral I factor.
-            elif cmd == 'I':
-                value_dict = quieres.db_fetch_heater_params(self.db, p1)
-                output = str("I_term = %s" % value_dict["I"])
+        # Read PID Proportional P factor.
+        elif cmd == 'P':
+            value_dict = quieres.db_fetch_heater_params(self.db, p1)
+            output = str("P_term = %s" % value_dict["P"])
 
-            # Read PID Derivative D factor
-            elif cmd == 'D':
-                value_dict = quieres.db_fetch_heater_params(self.db, p1)
-                output = str("D_term = %s" % value_dict["D"])
+        # Read PID Integral I factor.
+        elif cmd == 'I':
+            value_dict = quieres.db_fetch_heater_params(self.db, p1)
+            output = str("I_term = %s" % value_dict["I"])
 
-            # Read Heater Looop Set Point.
-            elif cmd == 'W':
-                value_dict = quieres.db_fetch_heater_params(self.db, p1)
-                output = str("Set_pt= %s" % value_dict["set_pt"])
+        # Read PID Derivative D factor
+        elif cmd == 'D':
+            value_dict = quieres.db_fetch_heater_params(self.db, p1)
+            output = str("D_term = %s" % value_dict["D"])
 
-            # Read Heater Loop Control Sensor Number.
-            elif cmd == 'J':
-                value_dict = quieres.db_fetch_heater_params(self.db, p1)
-                output = str("Ctrl Sensor = %s" % value_dict["ctrl_sensor"])
+        # Read Heater Looop Set Point.
+        elif cmd == 'W':
+            value_dict = quieres.db_fetch_heater_params(self.db, p1)
+            output = str("Set_pt= %s" % value_dict["set_pt"])
 
-            # Read Heater Current (A).
-            elif cmd == 'V':
-                value_dict = quieres.db_fetch_heater_params(self.db, p1)
-                output = str("htr_current = %s" % value_dict["htr_current"])
+        # Read Heater Loop Control Sensor Number.
+        elif cmd == 'J':
+            value_dict = quieres.db_fetch_heater_params(self.db, p1)
+            output = str("Ctrl Sensor = %s" % value_dict["ctrl_sensor"])
 
-            # Read One Temp Sensor.
-            elif cmd == 'K':
-                output = "temp={0:3.3f}K".format(self.tlm_dict["rtd" + str(p1)])
+        # Read Heater Current (A).
+        elif cmd == 'V':
+            value_dict = quieres.db_fetch_heater_params(self.db, p1)
+            output = str("htr_current = %s" % value_dict["htr_current"])
 
-            # Read Exciation Current Setting.
-            elif cmd == 'X':
-                setting_dict = quieres.db_adc_fetch_names_n_values(self.db, 'IOCon1', p1)
-                value = setting_dict['iout0']
-                output = "excitation_current_setting = %s" % value
+        # Read One Temp Sensor.
+        elif cmd == 'K':
+            output = "temp={0:3.3f}K".format(self.tlm_dict["rtd" + str(p1)])
 
-            # Read Filter Type Setting.
-            elif cmd == 'Q':
-                setting_dict = quieres.db_adc_fetch_names_n_values(self.db, 'Filter_0', p1)
-                value = setting_dict['filter']
-                output = "filter_setting = %s" % value
+        # Read Exciation Current Setting.
+        elif cmd == 'X':
+            setting_dict = quieres.db_adc_fetch_names_n_values(self.db, 'IOCon1', p1)
+            value = setting_dict['iout0']
+            output = "excitation_current_setting = %s" % value
 
-            # Read sensor type connected to ADC.
-            elif cmd == 'S':
-                value_dict = quieres.db_fetch_heater_params(self.db, p1)
-                output = str("sns_type = %s" % value_dict["sensor_type"])
+        # Read Filter Type Setting.
+        elif cmd == 'Q':
+            setting_dict = quieres.db_adc_fetch_names_n_values(self.db, 'Filter_0', p1)
+            value = setting_dict['filter']
+            output = "filter_setting = %s" % value
 
-            # Read Bang Bang Current
-            elif cmd == "H":
-                output = self.ads1015.read_data()
+        # Read sensor type connected to ADC.
+        elif cmd == 'S':
+            value_dict = quieres.db_fetch_heater_params(self.db, p1)
+            output = str("sns_type = %s" % value_dict["sensor_type"])
 
-            # Read humidity sensor
-            elif cmd == "H":
-                output = str("cmd not yet implemented")
+        # Read Bang Bang Current
+        elif cmd == "H":
+            output = self.ads1015.read_data()
 
-            else:
-                return -1
+        # Read humidity sensor
+        elif cmd == "H":
+            output = str("cmd not yet implemented")
 
-            self.qxmit.put(output.encode('utf-8'))
-            return 1
+        else:
+            return -1
+
+        self.qxmit.put(output)
+        return 1
 
     def process_write_cmd(self, cmd_dict):
         cmd = cmd_dict['CMD']
@@ -191,7 +187,7 @@ class DoTasks(threading.Thread):
 
         if p1 < p1min or p1 > p1max or p2 < p2min or p2 > p2max:
             output = "bad command"
-            self.qxmit.put(output.encode('utf-8'))
+            self.qxmit.put(output)
             return -1
 
         # set heater mode
@@ -263,7 +259,7 @@ class DoTasks(threading.Thread):
 
         else:
             return -1
-        self.qxmit.put(output.encode('utf-8'))
+        self.qxmit.put(output)
         return 1
 
 #TODO: wire in command for reading humidity sensor
