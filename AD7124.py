@@ -246,9 +246,9 @@ class AD7124(object):
                     r_at_25 = 10000
                     voltage = (conversion * int_ref) / 2**24
                     itherm = self.tlm_dict['itherm' + str(self._sens_num)]
-                    rt = voltage / itherm
 
                     if conversion > 0:  # avoid divied by zero
+                        rt = voltage / itherm
                         tempk = (25 + 273.15) * beta / (beta + (25 + 273.15) * (log(rt) - log(r_at_25)))
                     else:
                         tempk = 0
@@ -293,7 +293,7 @@ class AD7124(object):
                 ir8 = vr8/5620
                 self.tlm_dict[dkey] = ir8
             else:
-                self.logger.warn("bad channel")
+                self.logger.warn("bad channel: %s", channel)
                 done = True
 
             if ch_flgs[0] & ch_flgs[1] & ch_flgs[2] & ch_flgs[3] & ch_flgs[4] & ch_flgs[5] & ch_flgs[6] is True:
