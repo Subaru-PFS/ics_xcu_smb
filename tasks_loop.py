@@ -28,9 +28,18 @@ class DoTasks(threading.Thread):
         logging.warn('processing cmd: %s' % (cmd_dict))
         
         if cmd_dict['CMD_TYPE'] == '?' and cmd_dict["READ"] == 1:
-            res = self.process_read_cmd(cmd_dict)
+            try:
+                self.process_read_cmd(cmd_dict)
+            except Exception as e:
+                self.logger.warn('command failure: %s', e)
+                self.qxmit.put('FATAL ERROR')
+                
         elif cmd_dict['CMD_TYPE'] == '~' and cmd_dict["WRITE"] == 1:
-            res = self.process_write_cmd(cmd_dict)
+            try:
+                self.process_write_cmd(cmd_dict)
+            except Exception as e:
+                self.logger.warn('command failure: %s', e)
+                self.qxmit.put('FATAL ERROR')
         else:
             cmd_dict['ERROR'] = -1
             output = "bad command"
@@ -39,7 +48,7 @@ class DoTasks(threading.Thread):
     def process_read_cmd(self, cmd_dict):
         self.logger.info('processing read cmd %s', cmd_dict)
         
-        output = ''
+        output = 'ERROR'
         cmd = cmd_dict['CMD']
         p1 = cmd_dict['P1_DEF']
         p1min = cmd_dict["P1_MIN"]
@@ -92,7 +101,7 @@ class DoTasks(threading.Thread):
 
         # Read Hi Power output state
         elif cmd == 'F':
-            value = self.bb[p1-1].output_state
+            value = self.bb[p1-1].bang_bang_status
             output = str("output_state = %s" % value)
 
         # Read Software Rev
