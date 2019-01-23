@@ -1,6 +1,10 @@
+import logging
+
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtSql import QSqlQuery
+
+dbLogger = logging.getLogger('db')
 
 def db_table_data_to_dictionary(db, tblname):
     query = QSqlQuery(db)
@@ -212,6 +216,7 @@ def db_update_htr_params(db, value, name, htr_num):
     query = QSqlQuery(db)
     qrytxt = "UPDATE tblHtrParams SET {n} = {v}  WHERE PK_HTR_ID = {hn}". \
         format(n=name, v=value, hn=htr_num)
+    dbLogger.info(qrytxt)
     query.exec_(qrytxt)
 
 def db_fetch_board_id(db):
@@ -255,12 +260,14 @@ def db_update_adc_params(db, value, name, adc_num):
     query = QSqlQuery(db)
     qrytxt = "UPDATE tblAdcParams SET {n} = {v}  WHERE PK_ADC_ID = {an}". \
         format(n=name, v=value, an=adc_num)
+    dbLogger.info(qrytxt)
     query.exec_(qrytxt)
 
 def db_adc_update_register_field(db, field_name, sns_num, value):
     query = QSqlQuery(db)
     qrytxt = "UPDATE tblAdcRegBits{sn} SET value = {v} " \
              "WHERE NAME = '{rf}'".format(sn=sns_num, v=value, rf=field_name)
+    dbLogger.info(qrytxt)
     query.exec_(qrytxt)
 
 def db_fetch_cmd_specifications(db, cmdchar):
@@ -281,12 +288,14 @@ def db_fetch_cmd_specifications(db, cmdchar):
 def db_update_board_id(db, value):
     query = QSqlQuery(db)
     qrytxt = "UPDATE tblSmbParams SET VALUE = {v}  WHERE NAME = \'BOARD_ID\'".format(v=value)
+    dbLogger.info(qrytxt)
     query.exec_(qrytxt)
     query.clear()
 
 def db_update_board_swrev(db, value):
     query = QSqlQuery(db)
     qrytxt = "UPDATE tblSmbParams SET VALUE = {v}  WHERE NAME = \'SOFTWARE_REV\'".format(v=value)
+    dbLogger.info(qrytxt)
     query.exec_(qrytxt)
     query.clear()
 
