@@ -29,7 +29,7 @@ def main():
     logger.info('starting logging!')
     
     smbdb = QSqlDatabase.addDatabase("QSQLITE")
-    smbdb.setDatabaseName("smb.db")
+    smbdb.setDatabaseName("/db/smb.db")
     if not smbdb.open():
         result = QMessageBox.warning(None, 'Error', "Database Error: %s" % smbdb.lastError().text())
         print(result)
