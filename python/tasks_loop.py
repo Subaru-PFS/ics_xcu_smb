@@ -69,8 +69,7 @@ class DoTasks(threading.Thread):
         # fetch Heater Mode (0=Disabled, 1=Fixed Percent, 2=PID Control)
         if cmd == 'L':
             htr_dict = quieres.db_fetch_heater_params(self.db, p1)
-            value = str(htr_dict['mode'])
-            output = str("heater_mode = %s" % value)
+            output = str(htr_dict['mode'])
 
         # Read temperatures from all channels
         elif cmd == 't':
@@ -84,15 +83,21 @@ class DoTasks(threading.Thread):
 
         # Read RTD Resistance at temperature
         elif cmd == 'r':
+            readings = []
             for item in natsort.natsorted(self.tlm_dict):
                 if 'adc_sns_ohms' in item:
-                    output += item + " = {0:6.1f}ohms\r\n".format(self.tlm_dict[item])
+                    readings.append("%.2f" % self.tlm_dict[item])
+            output = ','.join(readings)
+            self.logger.info('%s readings: %s, output: %s', cmd, readings, output)
 
         # Read voltage at a temp sensor.
         elif cmd == 'v':
+            readings = []
             for item in natsort.natsorted(self.tlm_dict):
                 if 'adc_sns_volts' in item:
-                    output += item + " = {0:0.6f}v\r\n".format(self.tlm_dict[item])
+                    readings.append("%.6f" % self.tlm_dict[item])
+            output = ','.join(readings)
+            self.logger.info('%s readings: %s, output: %s', cmd, readings, output)
 
         # Read Board ID
         elif cmd == 'A':
@@ -101,8 +106,8 @@ class DoTasks(threading.Thread):
 
         # Read Hi Power output state
         elif cmd == 'F':
-            value = self.bb[p1-1].bang_bang_status
-            output = str("output_state = %s" % value)
+            value = self.bb[p1-1].bang_bang_status()
+            output = value
 
         # Read Software Rev
         elif cmd == 'N':
@@ -142,12 +147,12 @@ class DoTasks(threading.Thread):
         # Read Heater Loop Control Sensor Number.
         elif cmd == 'J':
             value_dict = quieres.db_fetch_heater_params(self.db, p1)
-            output = str("Ctrl Sensor = %s" % value_dict["ctrl_sensor"])
+            output = value_dict["ctrl_sensor"]
 
         # Read Heater Current (A).
         elif cmd == 'V':
             value_dict = quieres.db_fetch_heater_params(self.db, p1)
-            output = str("htr_current = %s" % value_dict["htr_current"])
+            output = value_dict["htr_current"]
 
         # Read One Temp Sensor.
         elif cmd == 'K':
