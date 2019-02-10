@@ -8,6 +8,7 @@ class PidHeater(object):
         self.dac = DAC(idx, self.db)
         self._heater_num = idx + 1
 
+        self._maxCurrent = 0.024
         self._heater_p_term = 1.0
         self._heater_i_term = 1.0
         self._heater_d_term = 1.0
@@ -127,55 +128,81 @@ class PidHeater(object):
         dict_sel_dac_reg['chb'] = True
         dict_sel_dac_reg['chc'] = True
         dict_sel_dac_reg['chd'] = True
-        self.dac.dac_write_register('select_dac',  **dict_sel_dac_reg)
+        self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
         # Now enable all four dac channels.
         dict_dac_cfg_reg = self.dac.dac_read_register('configuration_dac')
         dict_dac_cfg_reg['oten'] = state
-        self.dac.dac_write_register('configuration_dac',  **dict_dac_cfg_reg)
+        self.dac.dac_write_register('configuration_dac', **dict_dac_cfg_reg)
 
     def htr_set_heater_current(self, current):
-        # Write Program DAC Data.
-        self.set_all_currents_to_zero()
+        """Set all the the current DAC registers for this heater. 
+
+        Args
+        ----
+        current : float
+          Requested current, clipped to 0 to 0.086A
+
+        The output is the sum of four 0.024A DAC channels named 'A'
+        through 'D'. These are turned on in order as the load
+        requires.
+
+        """
+
+        maxTotalCurrent = 4*self.maxCurrent
+        maxTotalBits = 4*0xffff
 
         if current < 0:
-            current = 0
-        if current > .096:
-            current = .096
+            current = 0.0
+        if current > maxTotalCurrent:
+            current = maxTotalCurrent
 
-        if current > .024:
-            self.select_one_dac('a')
-            hexval = 0xffff
-            self.dac.dac_write_dac_data_reg(hexval)
-        elif current <= .024:
-            self.select_one_dac('a')
-            hexval = int((float(0xffff)/.024) * current)
-            self.dac.dac_write_dac_data_reg(hexval)
+        totalRequest = int(maxTotalBits / maxTotalCurrent * current)
+        totalRequest = max(0, min(maxTotalBits, totalRequest))
+        baseRequest = totalRequest//4
+        residualRequest = totalRequest%4
+        
+        self.update_one_dac('a', baseRequest + (residualRequest > 0))
+        self.update_one_dac('b', baseRequest + (residualRequest > 1))
+        self.update_one_dac('c', baseRequest + (residualRequest > 2))
+        self.update_one_dac('d', baseRequest)
 
-        if current > .048:
-            self.select_one_dac('b')
-            hexval = 0xffff
-            self.dac.dac_write_dac_data_reg(hexval)
-        elif .024 < current <= .048:
-            self.select_one_dac('b')
-            hexval = int(float(0xffff) / .024 * (current - .024))
-            self.dac.dac_write_dac_data_reg(hexval)
+        self._heater_current = current
+        quieres.db_update_htr_params(self.db, current, 'htr_current', self._heater_num)
 
-        if current > .072:
-            self.select_one_dac('c')
-            hexval = 0xffff
-            self.dac.dac_write_dac_data_reg(hexval)
-        elif .048 < current <= .072:
-            self.select_one_dac('c')
-            hexval = int(float(0xffff) / .024 * (current - .048))
-            self.dac.dac_write_dac_data_reg(hexval)
+    def htr_set_heater_current_byDAC(self, current):
+        """Set all the the current DAC registers for this heater. 
 
-        if current > 0.072:
-            self.select_one_dac('d')
-            hexval = int(float(0xffff) / .024 * (current - .072))
-            self.dac.dac_write_dac_data_reg(hexval)
+        Args
+        ----
+        current : float
+          Requested current, clipped to 0 to 0.086A
 
-        # data_reg = self.dac.dac_read_dac_data_reg()
-        # print(data_reg)
+        The output is the sum of four 0.024A DAC channels named 'A'
+        through 'D'. These are turned on in order as the load
+        requires.
+
+        """
+
+        if current < 0:
+            current = 0.0
+        if current > 4*self._maxCurrent:
+            current = 4*self._maxCurrent
+            
+        def currentToHex(current):
+            current = max(0.0, current)
+            hexval = int(0xffff / self._maxCurrent * current)
+            return min(0xffff, hexval)
+
+        acurrent = min(0.024, current)
+        bcurrent = min(0.048, current) - 0.024
+        ccurrent = min(0.072, current) - 0.048
+        dcurrent = current - 0.072
+
+        self.update_one_dac('a', currentToHex(acurrent))
+        self.update_one_dac('b', currentToHex(bcurrent))
+        self.update_one_dac('c', currentToHex(ccurrent))
+        self.update_one_dac('d', currentToHex(dcurrent))
+
         self._heater_current = current
         quieres.db_update_htr_params(self.db, current, 'htr_current', self._heater_num)
 
