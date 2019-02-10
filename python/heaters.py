@@ -194,23 +194,24 @@ class PidHeater(object):
         self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
 
     def select_one_dac(self, dac):
+        dac = dac.lower()
         dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
-        if dac == 'a' or dac == 'A':
+        if dac == 'a':
             dict_sel_dac_reg['cha'] = True
             dict_sel_dac_reg['chb'] = False
             dict_sel_dac_reg['chc'] = False
             dict_sel_dac_reg['chd'] = False
-        elif dac == 'b' or dac == 'B':
+        elif dac == 'b':
             dict_sel_dac_reg['cha'] = False
             dict_sel_dac_reg['chb'] = True
             dict_sel_dac_reg['chc'] = False
             dict_sel_dac_reg['chd'] = False
-        elif dac == 'c' or dac == 'C':
+        elif dac == 'c':
             dict_sel_dac_reg['cha'] = False
             dict_sel_dac_reg['chb'] = False
             dict_sel_dac_reg['chc'] = True
             dict_sel_dac_reg['chd'] = False
-        elif dac == 'd' or dac == 'C':
+        elif dac == 'd':
             dict_sel_dac_reg['cha'] = False
             dict_sel_dac_reg['chb'] = False
             dict_sel_dac_reg['chc'] = False
@@ -222,6 +223,10 @@ class PidHeater(object):
             dict_sel_dac_reg['chd'] = False
         self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
 
+    def update_one_dac(self, dac, value):
+        self.select_one_dac(dac)
+        self.dac.dac_write_dac_data_reg(value)
+        
     # </editor-fold>
 
     # <editor-fold desc="******************* PID Methods *******************">
