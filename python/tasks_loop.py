@@ -55,7 +55,7 @@ class DoTasks(threading.Thread):
         p1max = cmd_dict["P1_MAX"]
 
         if p1 < p1min or p1 > p1max:
-            self.logger.info('cmd %s p1 arg is out of range', cmd)
+            self.logger.warn('cmd %s p1 arg is out of range', cmd)
             output = "OUT OF RANGE"
             self.qxmit.put(output)
             return -1
@@ -186,6 +186,9 @@ class DoTasks(threading.Thread):
         else:
             return -1
 
+        if output == '':
+            output = 'NO VALUE'
+            
         self.qxmit.put(output)
         return 1
 
