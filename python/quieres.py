@@ -5,6 +5,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtSql import QSqlQuery
 
 dbLogger = logging.getLogger('db')
+dbLogger.setLevel(logging.INFO)
 
 def db_table_data_to_dictionary(db, tblname):
     query = QSqlQuery(db)

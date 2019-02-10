@@ -46,8 +46,6 @@ class DoTasks(threading.Thread):
             self.qxmit.put(output)
 
     def process_read_cmd(self, cmd_dict):
-        self.logger.info('processing read cmd %s', cmd_dict)
-        
         output = 'ERROR'
         cmd = cmd_dict['CMD']
         p1 = cmd_dict['P1_DEF']
@@ -107,7 +105,7 @@ class DoTasks(threading.Thread):
         # Read Hi Power output state
         elif cmd == 'F':
             value = self.bb[p1-1].bang_bang_status()
-            output = value
+            output = str(int(value))
 
         # Read Software Rev
         elif cmd == 'N':
@@ -147,12 +145,12 @@ class DoTasks(threading.Thread):
         # Read Heater Loop Control Sensor Number.
         elif cmd == 'J':
             value_dict = quieres.db_fetch_heater_params(self.db, p1)
-            output = value_dict["ctrl_sensor"]
+            output = str(value_dict["ctrl_sensor"])
 
         # Read Heater Current (A).
         elif cmd == 'V':
             value_dict = quieres.db_fetch_heater_params(self.db, p1)
-            output = value_dict["htr_current"]
+            output = str(value_dict["htr_current"])
 
         # Read One Temp Sensor.
         elif cmd == 'K':
