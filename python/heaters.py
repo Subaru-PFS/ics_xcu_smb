@@ -152,7 +152,7 @@ class PidHeater(object):
 
         """
 
-        maxTotalCurrent = 4*self.maxCurrent
+        maxTotalCurrent = 4*self._maxCurrent
         maxTotalBits = 4*0xffff
 
         if current < 0:
