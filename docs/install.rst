@@ -44,8 +44,10 @@ pacakges first, or there can be conflicts:
 - sudo apt-get update
 - sudo apt-get upgrade
 - sudo apt-get install lightdm emacs25-nox tcpdump strace lsof
+- sudo apt-get install lxde-core x11-utils x11-apps
 - sudo apt-get install ipython3 python3-numpy cython3
-
+- sudo apt-get install christ what a clusterfuck.
+  
 - add /software to /etc/fstab (``nano /etc/fstab``, and add ``tron:/software /software defaults,ro 0 0``
 
 - "sudo raspi-config", then:
@@ -55,7 +57,7 @@ pacakges first, or there can be conflicts:
 Reboot and ssh back in, finish configuring:
 
 - "sudo raspi-config", and
-  - Interfacing Options, enable SPI, enable VNC (this will install tons of packages)
+  - Interfacing Options, enable SPI, enable I2C, enable VNC (this will install tons of packages)
   - Boot Options, B1: select B4 (Autologin to desktop GUI)
   - Advanced Options, A1 (Expand filesystem), A5 Resolution to 1280x1024
   
