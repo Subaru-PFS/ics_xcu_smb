@@ -17,15 +17,30 @@ from spi_bus import DacSpi
 import cmd_loop
 from sensor_loop import SensorThread
 from tcpip import TcpServer
-from PyQt5.QtSql import *
+import PyQt5.QtSql as qtSql
 
 
-def main():
+def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
+    """Start the SMB program
+
+    Args
+    ----
+    dbPath : str
+      The path to the configuration database.
+    logLevel : int
+      the logging threshold, per standard ``logging`` levels
+    sensorPeriod = number
+      how often to run the sensor loop;.
+    doGUI : bool
+      whether to load the GUI windows.
+    
+    """
+    
     logging.basicConfig(datefmt = "%Y-%m-%d %H:%M:%S",
                         format = "%(asctime)s.%(msecs)03dZ %(name)-10s %(levelno)s %(filename)s:%(lineno)d %(message)s")
     
     logger = logging.getLogger('smb')
-    logger.setLevel(5)
+    logger.setLevel(logLevel)
     logger.info('starting logging!')
     
     smbdb = QSqlDatabase.addDatabase("QSQLITE")
@@ -118,7 +133,30 @@ def main():
     cmdThread.join()
     GPIO.cleanup()
 
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+    if isinstance(argv, str):
+        import shlex
+        argv = shlex.split(argv)
 
+    import argparse
+
+    parser = argparse.ArgumentParser(sys.argv[0])
+    parser.add_argument('--dbPath', default=None,
+                        help='path to configuration sqlite file.')
+    parser.add_argument('--logLevel', type=int, default=logging.INFO,
+                        help='logging threshold. 10=debug, 20=info, 30=warn')
+    parser.add_argument('--noGUI', action='store_true',
+                        help='do not start X GUI')
+    parser.add_argument('--sensorPeriod', type=float, default=1.0,
+                        help='how often to sample the sensors')
+
+    opts = parser.parse_args(argv)
+    runSmb(dbPath=opts.dbPath, logLevel=opts.logLevel,
+           sensorPeriod=opts.sensorPeriod,
+           doGUI=(not opts.noGUI))
+    
 if __name__ == "__main__":
     main()
 
