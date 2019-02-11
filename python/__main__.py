@@ -42,12 +42,13 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     logger = logging.getLogger('smb')
     logger.setLevel(logLevel)
     logger.info('starting logging!')
-    
-    smbdb = QSqlDatabase.addDatabase("QSQLITE")
-    smbdb.setDatabaseName("/db/smb.db")
+
+    if dbPath is None:
+        dbPath = '/db/smb.db'
+    smbdb = qtSql.QSqlDatabase.addDatabase("QSQLITE")
+    smbdb.setDatabaseName(dbPath)
     if not smbdb.open():
-        result = QMessageBox.warning(None, 'Error', "Database Error: %s" % smbdb.lastError().text())
-        print(result)
+        logger.critical("Error opening database %s: %s" % (dbPath, smbdb.lastError().text()))
         sys.exit(1)
 
     # db = smb_db()
@@ -108,7 +109,12 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     # Create Bang-Bang heater objects
     bang_bangs = [bb(i) for i in range(2)]
 
-    # Setup socket thread.
+    # Get data, service PID etc.
+    sensorThread = SensorThread(smbdb, tlm, bang_bangs, adcs, heaters, ads1015,
+                                sensorPeriod=sensorPeriod)
+    sensorThread.start()
+
+    # Setup socket thread. Must be merged with the cmdThread
     t1 = TcpServer(smbdb, qcmd, qxmit)
     t1.start()
 
@@ -122,13 +128,12 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
                                  qcmd, qxmit, isMainThread=(not doGUI))
     cmdThread.start()
 
-    t3 = DoTasks(smbdb, tlm, bang_bangs, adcs, heaters, ads1015, qcmd, qxmit)
-    t3.start()
+    if doGUI:
+        app = QtWidgets.QApplication(sys.argv)
+        main_window = MainWindow(smbdb, bang_bangs, adcs, heaters, ads1015, qcmd)
+        main_window.show()
 
-    app = QtWidgets.QApplication(sys.argv)
-    main_window = MainWindow(smbdb, bang_bangs, adcs, heaters, ads1015, qcmd)
-    main_window.show()
-    app.exec_()
+        app.exec_()
 
     cmdThread.join()
     GPIO.cleanup()
