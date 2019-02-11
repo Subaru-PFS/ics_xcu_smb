@@ -14,8 +14,10 @@ class SensorThread(threading.Thread):
         self.adcs = adcs
         self.heaters = heaters
         self.ads1015 = ads1015
-        self.loopTime = 0.5
+        self.loopTime = 0.5 if sensorPeriod is None else sensorPeriod
+        
         threading.Thread.__init__(self)
+        self.daemon = True
         
     def run(self):
         try:

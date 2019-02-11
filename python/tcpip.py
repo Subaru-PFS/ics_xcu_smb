@@ -13,7 +13,8 @@ class TcpServer(threading.Thread):
         self.qcmd = qcommand
         self.qxmit = qtransmit
         threading.Thread.__init__(self)
-
+        self.daemon = True
+        
     def run(self):
         host = ''  # Symbolic name meaning all available interfaces
         port = 1024  # Arbitrary non-privileged port
