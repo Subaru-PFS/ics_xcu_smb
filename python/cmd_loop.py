@@ -1,13 +1,13 @@
 import logging
 import threading
-import time
 import natsort
 import os
 import quieres
 
-
-class DoTasks(threading.Thread):
-    def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015, qcommand, qtransmit):
+class CmdLoop(threading.Thread):
+    def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015,
+                 qcommand, qtransmit,
+                 isMainThread=False):
         self.logger = logging.getLogger('smb')
         self.db = smbdb
         self.tlm_dict = tlm_dict
@@ -18,7 +18,8 @@ class DoTasks(threading.Thread):
         self.qxmit = qtransmit
         self.ads1015 = ads1015
         threading.Thread.__init__(self)
-
+        self.daemon = not isMainThread
+        
     def run(self):
         while True:
             cmd = self.qcmd.get()
@@ -77,7 +78,7 @@ class DoTasks(threading.Thread):
                     readings.append("%.4f" % self.tlm_dict[item])
 
             output = ','.join(readings)
-            self.logger.info('%s readings: %s, output: %s', cmd, readings, output)
+            self.logger.debug('%s readings: %s, output: %s', cmd, readings, output)
 
         # Read RTD Resistance at temperature
         elif cmd == 'r':
@@ -86,7 +87,7 @@ class DoTasks(threading.Thread):
                 if 'adc_sns_ohms' in item:
                     readings.append("%.2f" % self.tlm_dict[item])
             output = ','.join(readings)
-            self.logger.info('%s readings: %s, output: %s', cmd, readings, output)
+            self.logger.debug('%s readings: %s, output: %s', cmd, readings, output)
 
         # Read voltage at a temp sensor.
         elif cmd == 'v':
@@ -95,7 +96,7 @@ class DoTasks(threading.Thread):
                 if 'adc_sns_volts' in item:
                     readings.append("%.6f" % self.tlm_dict[item])
             output = ','.join(readings)
-            self.logger.info('%s readings: %s, output: %s', cmd, readings, output)
+            self.logger.debug('%s readings: %s, output: %s', cmd, readings, output)
 
         # Read Board ID
         elif cmd == 'A':

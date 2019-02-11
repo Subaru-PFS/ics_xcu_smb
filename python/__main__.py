@@ -14,7 +14,7 @@ from BangBang import bang_bang as bb
 from SmbGuiWindow import MainWindow
 from heaters import PidHeater
 from spi_bus import DacSpi
-from tasks_loop import DoTasks
+import cmd_loop
 from sensor_loop import SensorThread
 from tcpip import TcpServer
 from PyQt5.QtSql import *
@@ -97,9 +97,15 @@ def main():
     t1 = TcpServer(smbdb, qcmd, qxmit)
     t1.start()
 
-    # Get data, service PID etc.
-    t2 = SensorThread(smbdb, tlm, bang_bangs, adcs, heaters, ads1015)
-    t2.start()
+    # Start command handler. This is slightly tricky: if we have a
+    # GUI, that is the main thread and the command thread is run in
+    # the background (daemon=True). If there is no GUI, the commadn
+    # thread becomes the "main thread" (daemon=False). Daemon-ness
+    # must be set before the thread is .start()ed.
+    # 
+    cmdThread = cmd_loop.CmdLoop(smbdb, tlm, bang_bangs, adcs, heaters, ads1015,
+                                 qcmd, qxmit, isMainThread=(not doGUI))
+    cmdThread.start()
 
     t3 = DoTasks(smbdb, tlm, bang_bangs, adcs, heaters, ads1015, qcmd, qxmit)
     t3.start()
@@ -109,10 +115,7 @@ def main():
     main_window.show()
     app.exec_()
 
-    t1.join()
-    # t2.join()
-    qxmit.join()
-    qcmd.join()
+    cmdThread.join()
     GPIO.cleanup()
 
 
