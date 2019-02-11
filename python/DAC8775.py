@@ -1,3 +1,5 @@
+import logging
+
 from spi_bus import DacSpi
 from GPIO_config import io
 from utilities import getbytes_from_reg_bits
@@ -12,6 +14,7 @@ class DAC(object):
     # <editor-fold desc="******************* Public Methods *******************">
 
     def __init__(self, idx, smbdb):
+        self.logger = logging.getLogger('heaters')
         self.db = smbdb
         self.idx = idx
         self.dac_num = idx + 1
@@ -73,7 +76,8 @@ class DAC(object):
         while len(bytelist) < 3:
             bytelist.insert(1, self._DUMMY_BYTE)
         self.spi_obj.xfer(bytelist)
-
+        self.logger.debug('wrote data reg: %s', ','.join(['0x%02x'%b for b in bytelist]))
+        
     def dac_read_dac_data_reg(self):
 
         regid = self.__search_reg_address_from_name('DAC_data')

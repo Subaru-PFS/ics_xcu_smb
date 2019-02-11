@@ -1,9 +1,13 @@
+import logging
+
 from DAC8775 import DAC
 import quieres
 
 class PidHeater(object):
     """ pid_heater class """
     def __init__(self, idx, smbdb, tlm_dict):
+        self.logger = logging.getLogger('heaters')
+        self.logger.setLevel(logging.DEBUG)
         self.db = smbdb
         self.dac = DAC(idx, self.db)
         self._heater_num = idx + 1
@@ -249,7 +253,8 @@ class PidHeater(object):
             dict_sel_dac_reg['chc'] = False
             dict_sel_dac_reg['chd'] = False
         self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
-
+        self.logger.debug('selected DAC %s' % (dac))
+        
     def update_one_dac(self, dac, value):
         self.select_one_dac(dac)
         self.dac.dac_write_dac_data_reg(value)

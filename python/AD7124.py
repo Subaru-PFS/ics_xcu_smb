@@ -324,28 +324,28 @@ class AD7124(object):
         else:
             self._ref_resistor = 3920  # R2 on Rev-H
         if dict_io_ctrl_reg1 != value:
-            self.logger.warn('Error Reading Register')
+            self.logger.warn('Error Reading IOCon1 Register: expected %s vs %s' % (dict_io_ctrl_reg1, value))
 
         # Configure IOCon2 reg
         dict_io_ctrl_reg2 = quieres.db_adc_fetch_names_n_values(self.db, 'IOCon2', self._sens_num)
         self.__adc_write_register('IOCon2', **dict_io_ctrl_reg2)
         value = self.adc_read_register_to_dict('IOCon2')
         if dict_io_ctrl_reg2 != value:
-            self.logger.warn('Error Reading Register')
+            self.logger.warn('Error Reading IOCon2 Register: expected %s vs %s' % (dict_io_ctrl_reg2, value))
 
         # Configure Error_En reg
         dict_error_en_reg = quieres.db_adc_fetch_names_n_values(self.db, 'Error_En', self._sens_num)
         self.__adc_write_register('Error_En', **dict_error_en_reg)
         value = self.adc_read_register_to_dict('Error_En')
         if dict_error_en_reg != value:
-            self.logger.warn('Error Reading Register')
+            self.logger.warn('Error Reading Error_En Register: expected %s vs %s' % (dict_error_en_reg, value))
 
         # Configure ADC_Control reg
         dict_control_reg = quieres.db_adc_fetch_names_n_values(self.db, 'ADC_Control', self._sens_num)
         self.__adc_write_register('ADC_Control', **dict_control_reg)
         value = self.adc_read_register_to_dict('ADC_Control')
         if dict_control_reg != value:
-            self.logger.warn('Error Reading Register')
+            self.logger.warn('Error Reading ADC_Control Register: expected %s vs %s' % (dict_control_reg, value))
 
         # time.sleep(.1)
 

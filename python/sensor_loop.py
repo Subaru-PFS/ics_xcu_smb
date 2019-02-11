@@ -3,7 +3,9 @@ import threading
 import time
 
 class SensorThread(threading.Thread):
-    def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015, logLevel=logging.DEBUG):
+    def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015,
+                 sensorPeriod=None,
+                 logLevel=logging.INFO):
         self.logger = logging.getLogger('sensors')
         self.logger.setLevel(logLevel)
         self.db = smbdb
