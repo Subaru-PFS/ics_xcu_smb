@@ -5,6 +5,10 @@ Created on Thu Jan 25 08:38:35 2018
 @author: pi
 """
 
+import threading
+
+ioLock = threading.RLock()
+
 # Global Dictionary to hold shared TLM values
 telemetry = {
     'humidity': 0.0,
@@ -128,5 +132,6 @@ telemetry = {
     'itherm10': 0.0,
     'itherm11': 0.0,
     'itherm12': 0.0,
-
+    'htr_current1': 0.0,
+    'htr_current2': 0.0,
 }

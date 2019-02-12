@@ -1,6 +1,8 @@
 import RPi.GPIO as GPIO
 from GPIO_config import io
 
+import Gbl
+
 class bang_bang(object):
 
     def __init__(self, idx):
@@ -13,15 +15,19 @@ class bang_bang(object):
         elif self.idx == 1:
             self.hi_pwr_en_pin = self.io.pin_map['HI_PWR_EN2']
 
-        GPIO.setup(self.hi_pwr_en_pin, GPIO.OUT)
-        GPIO.output(self.hi_pwr_en_pin, 0)
+        with Gbl.ioLock:
+            GPIO.setup(self.hi_pwr_en_pin, GPIO.OUT)
+            GPIO.output(self.hi_pwr_en_pin, 0)
 
     def power_on_output(self):
-        GPIO.output(self.hi_pwr_en_pin, 1)
+        with Gbl.ioLock:
+            GPIO.output(self.hi_pwr_en_pin, 1)
 
     def power_off_output(self):
-        GPIO.output(self.hi_pwr_en_pin, 0)
+        with Gbl.ioLock:
+            GPIO.output(self.hi_pwr_en_pin, 0)
 
     def bang_bang_status(self):
-        status = bool(GPIO.input(self.hi_pwr_en_pin))
+        with Gbl.ioLock:
+            status = bool(GPIO.input(self.hi_pwr_en_pin))
         return status

@@ -110,6 +110,8 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     bang_bangs = [bb(i) for i in range(2)]
 
     # Get data, service PID etc.
+    # Once this is started, all access to io resources (GPIO, I2C, SPI) must use Gbl.ioLock
+    #
     sensorThread = SensorThread(smbdb, tlm, bang_bangs, adcs, heaters, ads1015,
                                 sensorPeriod=sensorPeriod)
     sensorThread.start()

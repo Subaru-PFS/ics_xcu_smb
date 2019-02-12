@@ -5,6 +5,7 @@ from GPIO_config import io
 from utilities import getbytes_from_reg_bits
 import quieres
 
+import Gbl
 
 class DAC(object):
     """
@@ -24,12 +25,14 @@ class DAC(object):
         self._LOW = bool(0)
         self._HIGH = bool(1)
         # self.spi_obj = spi_bus.RPi3Spi(1, mode=0, cs_id=0, max_speed_hz=1000)
-        self.spi_obj = DacSpi(self.idx)
-        self.pins = io()
-        self.__dac_initialize()
+
+        with Gbl.ioLock:
+            self.spi_obj = DacSpi(self.idx)
+            self.pins = io()
+            self.__dac_initialize()
 
     def __delete__(self, instance):
-        self.spi_obj.close()
+        self.spi_obj.close()    # CPL does not like.
 
     def dac_write_register(self, regname,  **kwargs):
 
@@ -43,7 +46,9 @@ class DAC(object):
             bytelist.append(val)
         while len(bytelist) < 3:
             bytelist.insert(1, self._DUMMY_BYTE)
-        self.spi_obj.xfer(bytelist)
+
+        with Gbl.ioLock:
+            self.spi_obj.xfer(bytelist)
 
     def dac_read_register(self, reg_name):
         data_24 = [0, 0, 0]
@@ -51,9 +56,10 @@ class DAC(object):
         regid |= self._READ_FLAG
         byte_list = [regid, self._DUMMY_BYTE, self._DUMMY_BYTE]
 
-        self.spi_obj.xfer(byte_list)
-        byte_list = [0, 0, 0]
-        data_24 = self.spi_obj.xfer(byte_list)
+        with Gbl.ioLock:
+            self.spi_obj.xfer(byte_list)
+            byte_list = [0, 0, 0]
+            data_24 = self.spi_obj.xfer(byte_list)
         data_24.pop(0)
 
         value = int.from_bytes(data_24, byteorder='big', signed=False)
@@ -75,7 +81,9 @@ class DAC(object):
             bytelist.append(val)
         while len(bytelist) < 3:
             bytelist.insert(1, self._DUMMY_BYTE)
-        self.spi_obj.xfer(bytelist)
+
+        with Gbl.ioLock:
+            self.spi_obj.xfer(bytelist)
         self.logger.debug('wrote data reg: %s', ','.join(['0x%02x'%b for b in bytelist]))
         
     def dac_read_dac_data_reg(self):
@@ -83,11 +91,13 @@ class DAC(object):
         regid = self.__search_reg_address_from_name('DAC_data')
         regid |= self._READ_FLAG
         byte_list = [regid, self._DUMMY_BYTE, self._DUMMY_BYTE]
-        self.spi_obj.xfer(byte_list)
-        regid = self.__search_reg_address_from_name('no_operation')
-        regid |= self._READ_FLAG
-        byte_list = [regid, self._DUMMY_BYTE, self._DUMMY_BYTE]
-        data_24 = self.spi_obj.xfer(byte_list)
+
+        with Gbl.ioLock:
+            self.spi_obj.xfer(byte_list)
+            regid = self.__search_reg_address_from_name('no_operation')
+            regid |= self._READ_FLAG
+            byte_list = [regid, self._DUMMY_BYTE, self._DUMMY_BYTE]
+            data_24 = self.spi_obj.xfer(byte_list)
         data_24.pop(0)
         dacdata = int.from_bytes(data_24, byteorder='big', signed=False)
 
@@ -109,42 +119,43 @@ class DAC(object):
         """ Reset the DAC """
         self.RegAddrs = quieres.db_table_data_to_dictionary(self.db,'tblDacRegisters')
 
-        # write reset config reg (use external reference).
-        reset_config_dict = quieres.db_dac_fetch_names_n_values(self.db,'reset_config', self.dac_num)
-        self.dac_write_register('reset_config', **reset_config_dict)
-        resetconfig = self.dac_read_register('reset_config')
-        # if reset_config_dict != resetconfig:
-        print(resetconfig)
+        with Gbl.ioLock:
+            # write reset config reg (use external reference).
+            reset_config_dict = quieres.db_dac_fetch_names_n_values(self.db,'reset_config', self.dac_num)
+            self.dac_write_register('reset_config', **reset_config_dict)
+            resetconfig = self.dac_read_register('reset_config')
+            # if reset_config_dict != resetconfig:
+            print(resetconfig)
 
-        # Write Select Buck Boost Register (Select A,B,C & D).
-        buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'Select_Buck_Boost_converter', self.dac_num)
-        self.dac_write_register('Select_Buck_Boost_converter', **buck_boost_dict)
-        buckboostsel = self.dac_read_register('Select_Buck_Boost_converter')
-        print(buckboostsel)
+            # Write Select Buck Boost Register (Select A,B,C & D).
+            buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'Select_Buck_Boost_converter', self.dac_num)
+            self.dac_write_register('Select_Buck_Boost_converter', **buck_boost_dict)
+            buckboostsel = self.dac_read_register('Select_Buck_Boost_converter')
+            print(buckboostsel)
 
-        # Write Config Buck-Boost reg.
-        cfg_buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_Buck_Boost_converter', self.dac_num)
-        self.dac_write_register('configuration_Buck_Boost_converter', **cfg_buck_boost_dict)
-        buckboostconfig = self.dac_read_register('configuration_Buck_Boost_converter')
-        print(buckboostconfig)
+            # Write Config Buck-Boost reg.
+            cfg_buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_Buck_Boost_converter', self.dac_num)
+            self.dac_write_register('configuration_Buck_Boost_converter', **cfg_buck_boost_dict)
+            buckboostconfig = self.dac_read_register('configuration_Buck_Boost_converter')
+            print(buckboostconfig)
 
-        # Write Select DAC Register.
-        sel_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'select_dac', self.dac_num)
-        self.dac_write_register('select_dac', **sel_dac_dict)
-        dacsel = self.dac_read_register('select_dac')
-        print(dacsel)
+            # Write Select DAC Register.
+            sel_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'select_dac', self.dac_num)
+            self.dac_write_register('select_dac', **sel_dac_dict)
+            dacsel = self.dac_read_register('select_dac')
+            print(dacsel)
 
-        # Write Config Dac Register.
-        cfg_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_dac', self.dac_num)
-        self.dac_write_register('configuration_dac', **cfg_dac_dict)
-        daccnfg = self.dac_read_register('configuration_dac')
-        print(daccnfg)
+            # Write Config Dac Register.
+            cfg_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_dac', self.dac_num)
+            self.dac_write_register('configuration_dac', **cfg_dac_dict)
+            daccnfg = self.dac_read_register('configuration_dac')
+            print(daccnfg)
 
-        # Write Program DAC Data.
-        self.dac_write_dac_data_reg(0x0000)
-        # Read Config Dac Register.
-        dacdata = self.dac_read_dac_data_reg()
-        print("Dac cfg = 0x%x" % dacdata)
+            # Write Program DAC Data.
+            self.dac_write_dac_data_reg(0x0000)
+            # Read Config Dac Register.
+            dacdata = self.dac_read_dac_data_reg()
+            print("Dac cfg = 0x%x" % dacdata)
 
     def __search_reg_address_from_name(self, name):
         for a in self.RegAddrs:

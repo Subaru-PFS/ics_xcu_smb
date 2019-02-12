@@ -8,6 +8,7 @@ import GPIO_config
 from utilities import getbytes_from_reg_bits
 import quieres
 
+import Gbl
 
 class AD7124(object):
     """
@@ -46,9 +47,6 @@ class AD7124(object):
         self.__adc_initialize()
         self.sns = sensor(self.db, self._sns_type_id)  # Create sensor object for this ADC.
 
-    def __delete__(self, instance):
-        self.spi_obj.close()
-
     # <editor-fold desc="******************** ADC Properties ********************">
 
     @property
@@ -82,9 +80,6 @@ class AD7124(object):
     # <editor-fold desc="******************* AD7124 Public Methods *******************">
 
     def set_filter_type(self, value):
-        reg_name = 'Filter_0'  # filter 0 is RTD channel
-        reg_dict = self.adc_read_register_to_dict(reg_name)
-
         switcher = {
             0: 0,
             1: 1,
@@ -93,27 +88,30 @@ class AD7124(object):
             4: 5,
             5: 7
         }
-        reg_dict["filter"] = switcher.get(value, 0)
+        reg_name = 'Filter_0'  # filter 0 is RTD channel
 
-        self.__adc_write_register(reg_name, **reg_dict)
+        with Gbl.ioLock:
+            reg_dict = self.adc_read_register_to_dict(reg_name)
+            reg_dict["filter"] = switcher.get(value, 0)
+            self.__adc_write_register(reg_name, **reg_dict)
+
         self._adc_filter = value
         quieres.db_adc_update_register_field(self.db, 'filter', self._sens_num, value)
 
     def set_post_filter_type(self, value):
-        reg_name = 'Filter_0'  # filter 0 is RTD channel
-        reg_dict = self.adc_read_register_to_dict(reg_name)
-
         switcher = {
             0: 2,
             1: 3,
             2: 5,
             3: 6,
         }
+        reg_name = 'Filter_0'  # filter 0 is RTD channel
 
-        reg_dict["post_filter"] = switcher.get(value, 0)
-
-        self.__adc_write_register(reg_name, **reg_dict)
-        self._adc_filter = value
+        with Gbl.ioLock:
+            reg_dict = self.adc_read_register_to_dict(reg_name)
+            reg_dict["post_filter"] = switcher.get(value, 0)
+            self.__adc_write_register(reg_name, **reg_dict)
+            self._adc_filter = value
         quieres.db_adc_update_register_field(self.db, 'post_filter', self._sens_num, value)
 
     def adc_set_temp_units(self, value):
@@ -121,34 +119,39 @@ class AD7124(object):
         self._temp_unit = value
 
     def adc_set_sensor_type(self, value):
-        quieres.db_update_adc_params(self.db, value, 'sensor_type', self._sens_num)
-        self._sns_type_id = value
-        reg_dict = self.adc_read_register_to_dict('IOCon1')
-
         switcher = {
             1: 1,
             2: 0,
             3: 0,
         }
 
+        quieres.db_update_adc_params(self.db, value, 'sensor_type', self._sens_num)
         dat1 = switcher.get(value, 1)
-        reg_dict['gpio_dat1'] = dat1
+
+        with Gbl.ioLock:
+            reg_dict = self.adc_read_register_to_dict('IOCon1')
+            reg_dict['gpio_dat1'] = dat1
+            self.__adc_write_register('IOCon1', **reg_dict)
+            self._sns_type_id = value
         quieres.db_adc_update_register_field(self.db, 'gpio_dat1', self._sens_num, dat1)
-        self.__adc_write_register('IOCon1', **reg_dict)
 
     def adc_set_sensor_wiring(self, value):
         reg_name = "IOCon1"
-        reg_dict = self.adc_read_register_to_dict(reg_name)
-        reg_dict["pdsw"] = value
-        self.__adc_write_register(reg_name, **reg_dict)
+
+        with Gbl.ioLock:
+            reg_dict = self.adc_read_register_to_dict(reg_name)
+            reg_dict["pdsw"] = value
+            self.__adc_write_register(reg_name, **reg_dict)
         quieres.db_adc_update_register_field(self.db, 'pdsw', self._sens_num, value)
 
     def set_exciatation_current(self, value):
         reg_name = "IOCon1"
-        reg_dict = self.adc_read_register_to_dict(reg_name)
-        reg_dict["iout0"] = value
-        self.__adc_write_register(reg_name, **reg_dict)
-        self._adc_excitation_code = value
+
+        with Gbl.ioLock:
+            reg_dict = self.adc_read_register_to_dict(reg_name)
+            reg_dict["iout0"] = value
+            self.__adc_write_register(reg_name, **reg_dict)
+            self._adc_excitation_code = value
         quieres.db_adc_update_register_field(self.db, 'iout0', self._sens_num, value)
 
     def temperature_from_ntc_thermistor(self, rt):
@@ -205,8 +208,9 @@ class AD7124(object):
         rtd_temperature = 0.0
         ntc_temperature = 0.0
         while not done:
-            channel = self.__wait_end_of_conversion(1)
-            data_24 = self.__adc_read_register('Data', 3)  # read three conversion bytes
+            with Gbl.ioLock:
+                channel = self.__wait_end_of_conversion(1)
+                data_24 = self.__adc_read_register('Data', 3)  # read three conversion bytes
             data_24.pop(0)
             conversion = int.from_bytes(data_24, byteorder='big', signed=False)
 
@@ -310,44 +314,43 @@ class AD7124(object):
 
     def __adc_initialize(self):
 
-        self.RegAddrs = quieres.db_table_data_to_dictionary(self.db, 'tblAdcRegisters')
-        self.__adc_reset()
-        self.__adc_config_channels()
-        self.__adc_write_configurations()
+        with Gbl.ioLock:
+            self.RegAddrs = quieres.db_table_data_to_dictionary(self.db, 'tblAdcRegisters')
+            self.__adc_reset()
+            self.__adc_config_channels()
+            self.__adc_write_configurations()
 
-        # Configure IOCon1 reg
-        dict_io_ctrl_reg1 = quieres.db_adc_fetch_names_n_values(self.db, 'IOCon1', self._sens_num)
-        self.__adc_write_register('IOCon1', **dict_io_ctrl_reg1)
-        value = self.adc_read_register_to_dict('IOCon1')
-        if value['gpio_dat1'] == 0:
-            self._ref_resistor = 39200  # R26 on Ref-H
-        else:
-            self._ref_resistor = 3920  # R2 on Rev-H
-        if dict_io_ctrl_reg1 != value:
-            self.logger.warn('Error Reading IOCon1 Register: expected %s vs %s' % (dict_io_ctrl_reg1, value))
+            # Configure IOCon1 reg
+            dict_io_ctrl_reg1 = quieres.db_adc_fetch_names_n_values(self.db, 'IOCon1', self._sens_num)
+            self.__adc_write_register('IOCon1', **dict_io_ctrl_reg1)
+            value = self.adc_read_register_to_dict('IOCon1')
+            if value['gpio_dat1'] == 0:
+                self._ref_resistor = 39200  # R26 on Ref-H
+            else:
+                self._ref_resistor = 3920  # R2 on Rev-H
+            if dict_io_ctrl_reg1 != value:
+                self.logger.warn('Error Reading IOCon1 Register: expected %s vs %s' % (dict_io_ctrl_reg1, value))
 
-        # Configure IOCon2 reg
-        dict_io_ctrl_reg2 = quieres.db_adc_fetch_names_n_values(self.db, 'IOCon2', self._sens_num)
-        self.__adc_write_register('IOCon2', **dict_io_ctrl_reg2)
-        value = self.adc_read_register_to_dict('IOCon2')
-        if dict_io_ctrl_reg2 != value:
-            self.logger.warn('Error Reading IOCon2 Register: expected %s vs %s' % (dict_io_ctrl_reg2, value))
+            # Configure IOCon2 reg
+            dict_io_ctrl_reg2 = quieres.db_adc_fetch_names_n_values(self.db, 'IOCon2', self._sens_num)
+            self.__adc_write_register('IOCon2', **dict_io_ctrl_reg2)
+            value = self.adc_read_register_to_dict('IOCon2')
+            if dict_io_ctrl_reg2 != value:
+                self.logger.warn('Error Reading IOCon2 Register: expected %s vs %s' % (dict_io_ctrl_reg2, value))
 
-        # Configure Error_En reg
-        dict_error_en_reg = quieres.db_adc_fetch_names_n_values(self.db, 'Error_En', self._sens_num)
-        self.__adc_write_register('Error_En', **dict_error_en_reg)
-        value = self.adc_read_register_to_dict('Error_En')
-        if dict_error_en_reg != value:
-            self.logger.warn('Error Reading Error_En Register: expected %s vs %s' % (dict_error_en_reg, value))
+            # Configure Error_En reg
+            dict_error_en_reg = quieres.db_adc_fetch_names_n_values(self.db, 'Error_En', self._sens_num)
+            self.__adc_write_register('Error_En', **dict_error_en_reg)
+            value = self.adc_read_register_to_dict('Error_En')
+            if dict_error_en_reg != value:
+                self.logger.warn('Error Reading Error_En Register: expected %s vs %s' % (dict_error_en_reg, value))
 
-        # Configure ADC_Control reg
-        dict_control_reg = quieres.db_adc_fetch_names_n_values(self.db, 'ADC_Control', self._sens_num)
-        self.__adc_write_register('ADC_Control', **dict_control_reg)
-        value = self.adc_read_register_to_dict('ADC_Control')
-        if dict_control_reg != value:
-            self.logger.warn('Error Reading ADC_Control Register: expected %s vs %s' % (dict_control_reg, value))
-
-        # time.sleep(.1)
+            # Configure ADC_Control reg
+            dict_control_reg = quieres.db_adc_fetch_names_n_values(self.db, 'ADC_Control', self._sens_num)
+            self.__adc_write_register('ADC_Control', **dict_control_reg)
+            value = self.adc_read_register_to_dict('ADC_Control')
+            if dict_control_reg != value:
+                self.logger.warn('Error Reading ADC_Control Register: expected %s vs %s' % (dict_control_reg, value))
 
     def adc_read_register_to_dict(self, reg_name, muffleLog=False):
         reg_bit_data = quieres.db_adc_register_data_to_dictionary(self.db, reg_name, self._sens_num)
@@ -372,9 +375,10 @@ class AD7124(object):
         for val in rbytes:
             bytelist.append(val)
 
-        self.logger.debug('adc_write %02d %s 0x%04x', self.idx, reg_name, write_bytes)
-        self.pins.adc_sel(self.idx)
-        self.spi_obj.xfer2(bytelist)
+        with Gbl.ioLock:
+            self.logger.debug('adc_writing %02d %s 0x%04x', self.idx, reg_name, write_bytes)
+            self.pins.adc_sel(self.idx)
+            self.spi_obj.xfer2(bytelist)
 
     def __wait_end_of_conversion(self, timeout_s):
         starttime = time.time()
@@ -396,8 +400,9 @@ class AD7124(object):
         byte_list = [regid]
         for i in range(byte_len):
             byte_list.append(self._DUMMY_BYTE)
-        self.pins.adc_sel(self.idx)  # select ADC
-        resp = self.spi_obj.xfer2(byte_list)
+        with Gbl.ioLock:
+            self.pins.adc_sel(self.idx)  # select ADC
+            resp = self.spi_obj.xfer2(byte_list)
         if not muffleLog:
             self.logger.debug('adc_readreg %02d %s %s', self.idx, reg_name, ["0x%02x" % b for b in resp])
         
@@ -426,8 +431,9 @@ class AD7124(object):
             for i in range(16):
                 reg_name = 'Channel_' + str(i)
                 reg_dict = quieres.db_adc_fetch_names_n_values(self.db, reg_name, self._sens_num)
-                self.__adc_write_register(reg_name, **reg_dict)
-                result_dict = self.adc_read_register_to_dict(reg_name)
+                with Gbl.ioLock:
+                    self.__adc_write_register(reg_name, **reg_dict)
+                    result_dict = self.adc_read_register_to_dict(reg_name)
                 if reg_dict["enable"] == 1:
                     if result_dict != reg_dict:
                         raise ValueError
@@ -439,8 +445,9 @@ class AD7124(object):
             for i in range(8):
                 reg_name = 'Config_' + str(i)
                 reg_dict = quieres.db_adc_fetch_names_n_values(self.db, reg_name, self._sens_num)
-                self.__adc_write_register(reg_name, **reg_dict)
-                result_dict = self.adc_read_register_to_dict(reg_name)
+                with Gbl.ioLock:
+                    self.__adc_write_register(reg_name, **reg_dict)
+                    result_dict = self.adc_read_register_to_dict(reg_name)
                 if result_dict != reg_dict:
                     raise ValueError
 
@@ -449,9 +456,10 @@ class AD7124(object):
 
     def __adc_reset(self):
         """ Reset the ADC """
-        self.pins.adc_sel(self.idx)  # select ADC
-        wrbuf = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
-        self.spi_obj.writebytes(wrbuf)
+        with Gbl.ioLock:
+            self.pins.adc_sel(self.idx)  # select ADC
+            wrbuf = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+            self.spi_obj.writebytes(wrbuf)
 
     # </editor-fold>
 
