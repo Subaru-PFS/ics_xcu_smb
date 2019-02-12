@@ -151,8 +151,8 @@ class CmdLoop(threading.Thread):
         # Read Heater Percent (%).
         elif cmd == 'V':
             value_dict = quieres.db_fetch_heater_params(self.db, p1)
-            current = str(value_dict["htr_current"])
-            output = str(self.heaters[0].maxTotalCurrent / current)
+            current = value_dict["htr_current"]
+            output = str(current / self.heaters[0].maxTotalCurrent)
             
         # Read One Temp Sensor.
         elif cmd == 'K':
