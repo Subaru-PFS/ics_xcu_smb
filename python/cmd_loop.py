@@ -148,11 +148,12 @@ class CmdLoop(threading.Thread):
             value_dict = quieres.db_fetch_heater_params(self.db, p1)
             output = str(value_dict["ctrl_sensor"])
 
-        # Read Heater Current (A).
+        # Read Heater Percent (%).
         elif cmd == 'V':
             value_dict = quieres.db_fetch_heater_params(self.db, p1)
-            output = str(value_dict["htr_current"])
-
+            current = str(value_dict["htr_current"])
+            output = str(self.heaters[0].maxTotalCurrent / current)
+            
         # Read One Temp Sensor.
         elif cmd == 'K':
             output = "temp={0:3.3f}K".format(self.tlm_dict["rtd" + str(p1)])
@@ -218,9 +219,9 @@ class CmdLoop(threading.Thread):
         elif cmd == 'U':
             self.adcs[p1-1].adc_set_temp_units(p2)
 
-        # Set Heater Current (Amps)
+        # Set Heater Current (Percent)
         elif cmd == 'V':
-            self.heaters[p1 - 1].htr_set_heater_current(p2)
+            self.heaters[p1 - 1].htr_set_heater_fraction(p2/100.0)
 
         # Store Excit uA (0=NONE,1=50,2=100,3=250,4=500,5=750, 6,7=1000)
         elif cmd == 'X':
