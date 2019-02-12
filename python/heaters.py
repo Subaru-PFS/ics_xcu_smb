@@ -3,16 +3,21 @@ import logging
 from DAC8775 import DAC
 import quieres
 
+import Gbl
+
 class PidHeater(object):
     """ pid_heater class """
     def __init__(self, idx, smbdb, tlm_dict):
         self.logger = logging.getLogger('heaters')
         self.logger.setLevel(logging.DEBUG)
         self.db = smbdb
-        self.dac = DAC(idx, self.db)
+
+        with Gbl.ioLock:
+            self.dac = DAC(idx, self.db)
         self._heater_num = idx + 1
 
         self._maxCurrent = 0.024
+        self.maxTotalCurrent = 0.096
         self._heater_p_term = 1.0
         self._heater_i_term = 1.0
         self._heater_d_term = 1.0
@@ -126,25 +131,29 @@ class PidHeater(object):
         quieres.db_update_htr_params(self.db, self._heater_mode, 'mode', self._heater_num)
 
     def htr_enable_heater_current(self, state):
-        # Select all four dac channels.
-        dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
-        dict_sel_dac_reg['cha'] = True
-        dict_sel_dac_reg['chb'] = True
-        dict_sel_dac_reg['chc'] = True
-        dict_sel_dac_reg['chd'] = True
-        self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
-        # Now enable all four dac channels.
-        dict_dac_cfg_reg = self.dac.dac_read_register('configuration_dac')
-        dict_dac_cfg_reg['oten'] = state
-        self.dac.dac_write_register('configuration_dac', **dict_dac_cfg_reg)
+        with Gbl.ioLock:
+            # Select all four dac channels.
+            dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
+            dict_sel_dac_reg['cha'] = True
+            dict_sel_dac_reg['chb'] = True
+            dict_sel_dac_reg['chc'] = True
+            dict_sel_dac_reg['chd'] = True
+            self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
+            # Now enable all four dac channels.
+            dict_dac_cfg_reg = self.dac.dac_read_register('configuration_dac')
+            dict_dac_cfg_reg['oten'] = state
+            self.dac.dac_write_register('configuration_dac', **dict_dac_cfg_reg)
 
+    def htr_set_heater_fraction(self, fraction):
+        return self.htr_set_heater_current(self.maxTotalCurrent * fraction)
+        
     def htr_set_heater_current(self, current):
         """Set all the the current DAC registers for this heater. 
 
         Args
         ----
         current : float
-          Requested current, clipped to 0 to 0.086A
+          Requested current, clipped to 0 to 0.096A
 
         The output is the sum of four 0.024A DAC channels named 'A'
         through 'D'. These are turned on in order as the load
@@ -152,7 +161,7 @@ class PidHeater(object):
 
         """
 
-        maxTotalCurrent = 4*self._maxCurrent
+        maxTotalCurrent = self.maxTotalCurrent
         maxTotalBits = 4*0xffff
 
         if current < 0:
@@ -164,13 +173,14 @@ class PidHeater(object):
         totalRequest = max(0, min(maxTotalBits, totalRequest))
         baseRequest = totalRequest//4
         residualRequest = totalRequest%4
-        
-        self.update_one_dac('a', baseRequest + (residualRequest > 0))
-        self.update_one_dac('b', baseRequest + (residualRequest > 1))
-        self.update_one_dac('c', baseRequest + (residualRequest > 2))
-        self.update_one_dac('d', baseRequest)
 
-        self._heater_current = current
+        with Gbl.ioLock:
+            self.update_one_dac('a', baseRequest + (residualRequest > 0))
+            self.update_one_dac('b', baseRequest + (residualRequest > 1))
+            self.update_one_dac('c', baseRequest + (residualRequest > 2))
+            self.update_one_dac('d', baseRequest)
+            self._heater_current = current
+            
         quieres.db_update_htr_params(self.db, current, 'htr_current', self._heater_num)
 
     def htr_set_heater_current_byDAC(self, current):
@@ -202,62 +212,67 @@ class PidHeater(object):
         ccurrent = min(0.072, current) - 0.048
         dcurrent = current - 0.072
 
-        self.update_one_dac('a', currentToHex(acurrent))
-        self.update_one_dac('b', currentToHex(bcurrent))
-        self.update_one_dac('c', currentToHex(ccurrent))
-        self.update_one_dac('d', currentToHex(dcurrent))
+        with Gbl.ioLock:
+            self.update_one_dac('a', currentToHex(acurrent))
+            self.update_one_dac('b', currentToHex(bcurrent))
+            self.update_one_dac('c', currentToHex(ccurrent))
+            self.update_one_dac('d', currentToHex(dcurrent))
+            self._heater_current = current
 
-        self._heater_current = current
         quieres.db_update_htr_params(self.db, current, 'htr_current', self._heater_num)
 
     def set_all_currents_to_zero(self):
-        dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
-        dict_sel_dac_reg['cha'] = True
-        dict_sel_dac_reg['chb'] = True
-        dict_sel_dac_reg['chc'] = True
-        dict_sel_dac_reg['chd'] = True
-        self.dac.dac_write_register('select_dac',  **dict_sel_dac_reg)
-        self.dac.dac_write_dac_data_reg(0x0000)
-        dict_sel_dac_reg['cha'] = False
-        dict_sel_dac_reg['chb'] = False
-        dict_sel_dac_reg['chc'] = False
-        dict_sel_dac_reg['chd'] = False
-        self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
+        with Gbl.ioLock:
+            dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
+            dict_sel_dac_reg['cha'] = True
+            dict_sel_dac_reg['chb'] = True
+            dict_sel_dac_reg['chc'] = True
+            dict_sel_dac_reg['chd'] = True
+            self.dac.dac_write_register('select_dac',  **dict_sel_dac_reg)
+            self.dac.dac_write_dac_data_reg(0x0000)
+            dict_sel_dac_reg['cha'] = False
+            dict_sel_dac_reg['chb'] = False
+            dict_sel_dac_reg['chc'] = False
+            dict_sel_dac_reg['chd'] = False
+            self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
 
     def select_one_dac(self, dac):
         dac = dac.lower()
-        dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
-        if dac == 'a':
-            dict_sel_dac_reg['cha'] = True
-            dict_sel_dac_reg['chb'] = False
-            dict_sel_dac_reg['chc'] = False
-            dict_sel_dac_reg['chd'] = False
-        elif dac == 'b':
-            dict_sel_dac_reg['cha'] = False
-            dict_sel_dac_reg['chb'] = True
-            dict_sel_dac_reg['chc'] = False
-            dict_sel_dac_reg['chd'] = False
-        elif dac == 'c':
-            dict_sel_dac_reg['cha'] = False
-            dict_sel_dac_reg['chb'] = False
-            dict_sel_dac_reg['chc'] = True
-            dict_sel_dac_reg['chd'] = False
-        elif dac == 'd':
-            dict_sel_dac_reg['cha'] = False
-            dict_sel_dac_reg['chb'] = False
-            dict_sel_dac_reg['chc'] = False
-            dict_sel_dac_reg['chd'] = True
-        else:
-            dict_sel_dac_reg['cha'] = False
-            dict_sel_dac_reg['chb'] = False
-            dict_sel_dac_reg['chc'] = False
-            dict_sel_dac_reg['chd'] = False
-        self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
+
+        with Gbl.ioLock:
+            dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
+            if dac == 'a':
+                dict_sel_dac_reg['cha'] = True
+                dict_sel_dac_reg['chb'] = False
+                dict_sel_dac_reg['chc'] = False
+                dict_sel_dac_reg['chd'] = False
+            elif dac == 'b':
+                dict_sel_dac_reg['cha'] = False
+                dict_sel_dac_reg['chb'] = True
+                dict_sel_dac_reg['chc'] = False
+                dict_sel_dac_reg['chd'] = False
+            elif dac == 'c':
+                dict_sel_dac_reg['cha'] = False
+                dict_sel_dac_reg['chb'] = False
+                dict_sel_dac_reg['chc'] = True
+                dict_sel_dac_reg['chd'] = False
+            elif dac == 'd':
+                dict_sel_dac_reg['cha'] = False
+                dict_sel_dac_reg['chb'] = False
+                dict_sel_dac_reg['chc'] = False
+                dict_sel_dac_reg['chd'] = True
+            else:
+                dict_sel_dac_reg['cha'] = False
+                dict_sel_dac_reg['chb'] = False
+                dict_sel_dac_reg['chc'] = False
+                dict_sel_dac_reg['chd'] = False
+            self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
         self.logger.debug('selected DAC %s' % (dac))
         
     def update_one_dac(self, dac, value):
-        self.select_one_dac(dac)
-        self.dac.dac_write_dac_data_reg(value)
+        with Gbl.ioLock:
+            self.select_one_dac(dac)
+            self.dac.dac_write_dac_data_reg(value)
         
     # </editor-fold>
 
