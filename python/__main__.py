@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 import logging
 import queue
-import RPi.GPIO as GPIO
-import spidev
 import sys
 import time
-from PyQt5 import QtWidgets
+
+import RPi.GPIO as GPIO
+import spidev
+
 import ADS1015
 import GPIO_config
 import Gbl
@@ -17,8 +18,9 @@ from spi_bus import DacSpi
 import cmd_loop
 from sensor_loop import SensorThread
 from tcpip import TcpServer
-import PyQt5.QtSql as qtSql
 
+from PyQt5 import QtWidgets
+import PyQt5.QtSql as qtSql
 
 def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     """Start the SMB program

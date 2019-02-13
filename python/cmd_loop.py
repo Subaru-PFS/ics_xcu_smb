@@ -1,13 +1,15 @@
 import logging
 import threading
-import natsort
 import os
+import queue
+
+import natsort
 import quieres
 
 class CmdLoop(threading.Thread):
     def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015,
-                 qcommand, qtransmit,
-                 isMainThread=False):
+                 qcommand, qtransmit):
+
         self.logger = logging.getLogger('smb')
         self.db = smbdb
         self.tlm_dict = tlm_dict
@@ -213,6 +215,8 @@ class CmdLoop(threading.Thread):
         p2min = cmd_dict["P2_MIN"]
         p2max = cmd_dict["P2_MAX"]
         output =  '~' + cmd + ', ' + str(p1) +  ', ' + str(p2)
+
+        self.logger.info('executing write cmd %s', cmd)
 
         if p1 < p1min or p1 > p1max or p2 < p2min or p2 > p2max:
             output = "bad command"
