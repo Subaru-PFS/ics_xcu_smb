@@ -1,7 +1,19 @@
+import atexit
+import logging
+import threading
+
 import RPi.GPIO as GPIO
 
 import Gbl
 
+def cleanup():
+    try:
+        GPIO.cleanup()
+    except RuntimeWarning:
+        return
+    
+    logging.warn('reset GPIO configuration on exit. thread=%s' % (threading.current_thread().name))
+    
 class io(object):
 
     def __init__(self, ):
@@ -36,6 +48,8 @@ class io(object):
             "nADC_BANK2_SEL": 27,
         }
 
+        atexit.register(cleanup)
+        
         with Gbl.ioLock:
             """ SET GPIO numbering mode to use GPIO designation, NOT pin numbers """
             GPIO.setmode(GPIO.BCM)
