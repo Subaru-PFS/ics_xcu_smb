@@ -12,8 +12,7 @@ class TcpServer(threading.Thread):
         self.db = smbdb
         self.qcmd = qcommand
         self.qxmit = qtransmit
-        threading.Thread.__init__(self)
-        self.daemon = True
+        threading.Thread.__init__(self, name='tcpip', daemon=True)
         
     def run(self):
         host = ''  # Symbolic name meaning all available interfaces

@@ -120,14 +120,8 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     t1 = TcpServer(smbdb, qcmd, qxmit)
     t1.start()
 
-    # Start command handler. This is slightly tricky: if we have a
-    # GUI, that is the main thread and the command thread is run in
-    # the background (daemon=True). If there is no GUI, the commadn
-    # thread becomes the "main thread" (daemon=False). Daemon-ness
-    # must be set before the thread is .start()ed.
-    # 
     cmdThread = cmd_loop.CmdLoop(smbdb, tlm, bang_bangs, adcs, heaters, ads1015,
-                                 qcmd, qxmit, isMainThread=(not doGUI))
+                                 qcmd, qxmit)
     cmdThread.start()
 
     if doGUI:
@@ -136,10 +130,25 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
         main_window.show()
 
         app.exec_()
+    else:
+        # If we are the real main thread, because there is no GUI,
+        # sleep forever, or at least until something like a ctrl-c
+        # hits us.
+        import select
 
+        try:
+            select.select([],[],[],None)
+        except (KeyboardInterrupt, Exception) as e:
+            logger.warning('exiting main program due to: %s' % (e))
+
+    cmdThread.pleaseExit()
+    sensorThread.pleaseExit()
+    sensorThread.join()
     cmdThread.join()
-    GPIO.cleanup()
-
+    
+    # There is an atexit handler to reset the GPIO configuration.
+    
+    
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]

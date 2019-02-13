@@ -17,16 +17,28 @@ class CmdLoop(threading.Thread):
         self.qcmd = qcommand
         self.qxmit = qtransmit
         self.ads1015 = ads1015
-        threading.Thread.__init__(self)
-        self.daemon = not isMainThread
+        self.__exitEvent = threading.Event()
+        
+        threading.Thread.__init__(self, name='cmdLoop', daemon=True)
+
+    def pleaseExit(self):
+        self.__exitEvent.set()
         
     def run(self):
         while True:
-            cmd = self.qcmd.get()
+            try:
+                cmd = self.qcmd.get(timeout=1)
+            except queue.Empty:
+                if self.__exitEvent.is_set():
+                    self.logger.info('exiting command thread because we were asked to.')
+                    return
+                else:
+                    continue
+                
             self.process_queued_cmd(cmd)
 
     def process_queued_cmd(self, cmd_dict):
-        logging.warn('processing cmd: %s' % (cmd_dict))
+        logging.debug('processing cmd: %s' % (cmd_dict))
         
         if cmd_dict['CMD_TYPE'] == '?' and cmd_dict["READ"] == 1:
             try:
