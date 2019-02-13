@@ -4,7 +4,6 @@ from math import log
 from Sensor import sensor
 import math
 import utilities
-import GPIO_config
 from utilities import getbytes_from_reg_bits
 import quieres
 
@@ -25,10 +24,10 @@ class AD7124(object):
         global dictionary that holds updated telemetry values
      """
 
-    def __init__(self, idx, smbdb, tlm_dict, spi_obj, logLevel=logging.INFO):
+    def __init__(self, idx, smbdb, tlm_dict, spi_obj, io, logLevel=logging.INFO):
         self.logger = logging.getLogger('ADC_%02d' % (idx))
         self.logger.setLevel(logLevel)
-        self.pins = GPIO_config.io()
+        self.pins = io
         self.db = smbdb
         self.idx = idx  # index of ADC (0 to 11)
         self._sens_num = idx + 1  # Sensor number (1 to 12)

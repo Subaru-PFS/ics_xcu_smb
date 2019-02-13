@@ -68,8 +68,8 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
 
     io.dac_bank_sel(1)
     # create BUS Objects
-    bus1 = DacSpi(0)
-    bus2 = DacSpi(1)
+    bus1 = DacSpi(0, io)
+    bus2 = DacSpi(1, io)
 
     bus1.xfer([3, 0, 0x10])
     bus2.xfer([3, 0, 0x10])
@@ -88,9 +88,6 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     logger.debug('data3: %s', data3)
     logger.debug('data4: %s', data4)
 
-    # Create DAC objects.
-    heaters = [PidHeater(i, smbdb, tlm) for i in range(2)]
-
     # Create SPI Bus object
     spi = spidev.SpiDev()  # create spi object
     spi_id = 0
@@ -100,14 +97,17 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     spi.mode = 3
     spi.cshigh = True
 
+    # Create DAC objects.
+    heaters = [PidHeater(i, smbdb, tlm, spi, io) for i in range(2)]
+
     # Create ADC objects.
-    adcs = [ad7124(i, smbdb, tlm, spi) for i in range(12)]
+    adcs = [ad7124(i, smbdb, tlm, spi, io) for i in range(12)]
 
     # Create ADS1015 object
     ads1015 = ADS1015.ADS1015(smbdb)
 
     # Create Bang-Bang heater objects
-    bang_bangs = [bb(i) for i in range(2)]
+    bang_bangs = [bb(i, io) for i in range(2)]
 
     # Get data, service PID etc.
     # Once this is started, all access to io resources (GPIO, I2C, SPI) must use Gbl.ioLock

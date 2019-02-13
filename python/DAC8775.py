@@ -1,7 +1,5 @@
 import logging
 
-from spi_bus import DacSpi
-from GPIO_config import io
 from utilities import getbytes_from_reg_bits
 import quieres
 
@@ -14,7 +12,7 @@ class DAC(object):
 
     # <editor-fold desc="******************* Public Methods *******************">
 
-    def __init__(self, idx, smbdb):
+    def __init__(self, idx, smbdb, spi, io):
         self.logger = logging.getLogger('heaters')
         self.db = smbdb
         self.idx = idx
@@ -26,15 +24,11 @@ class DAC(object):
         self._HIGH = bool(1)
         # self.spi_obj = spi_bus.RPi3Spi(1, mode=0, cs_id=0, max_speed_hz=1000)
 
-        with Gbl.ioLock:
-            self.spi_obj = DacSpi(self.idx)
-            self.pins = io()
-            self.__dac_initialize()
+        self.spi_obj = spi # DacSpi(self.idx)
+        self.pins = io
+        self.__dac_initialize()
 
-    def __delete__(self, instance):
-        self.spi_obj.close()    # CPL does not like.
-
-    def dac_write_register(self, regname,  **kwargs):
+    def dac_write_register(self, regname, **kwargs):
 
         reg_dict = quieres.db_dac_register_data_to_dictionary(self.db, regname, self.dac_num)
         write_bytes = getbytes_from_reg_bits(kwargs, reg_dict)

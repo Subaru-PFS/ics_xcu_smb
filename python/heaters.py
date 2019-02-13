@@ -7,13 +7,13 @@ import Gbl
 
 class PidHeater(object):
     """ pid_heater class """
-    def __init__(self, idx, smbdb, tlm_dict):
+    def __init__(self, idx, smbdb, tlm_dict, spi, io):
         self.logger = logging.getLogger('heaters')
         self.logger.setLevel(logging.DEBUG)
         self.db = smbdb
 
         with Gbl.ioLock:
-            self.dac = DAC(idx, self.db)
+            self.dac = DAC(idx, self.db, spi, io)
         self._heater_num = idx + 1
 
         self._maxCurrent = 0.024

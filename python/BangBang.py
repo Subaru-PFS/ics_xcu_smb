@@ -1,12 +1,11 @@
 import RPi.GPIO as GPIO
-from GPIO_config import io
 
 import Gbl
 
 class bang_bang(object):
 
-    def __init__(self, idx):
-        self.io = io()
+    def __init__(self, idx, io):
+        self.io = io
         self.idx = idx
         self.hi_pwr_en_pin = 0
         # Configure HI Power Enable Pins

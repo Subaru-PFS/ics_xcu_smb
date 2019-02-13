@@ -7,10 +7,10 @@ import Gbl
 
 class DacSpi(object):
 
-    def __init__(self, idx):
+    def __init__(self, idx, io):
         self.idx = idx
         self.lsbfirst = False
-        self.io = GPIO_config.io()
+        self.io = io
         self.mosi = self.io.pin_map['SPI1_MOSI']
         self.miso = self.io.pin_map['SPI1_MISO']
         self.sclk = self.io.pin_map['SPI1_SCLK']
