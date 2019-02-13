@@ -206,10 +206,13 @@ class AD7124(object):
         done = False
         rtd_temperature = 0.0
         ntc_temperature = 0.0
+
+        # Split this into an acquire and a process step? Drop several of these channela?
         while not done:
             with Gbl.ioLock:
                 channel = self.__wait_end_of_conversion(1)
                 data_24 = self.__adc_read_register('Data', 3)  # read three conversion bytes
+            self.logger.debug('conversion %d %d %s', self.idx, channel, data_24)
             data_24.pop(0)
             conversion = int.from_bytes(data_24, byteorder='big', signed=False)
 
@@ -249,13 +252,15 @@ class AD7124(object):
                     r_at_25 = 10000
                     voltage = (conversion * int_ref) / 2**24
                     itherm = self.tlm_dict['itherm' + str(self._sens_num)]
+                    dkey = 'adc_ext_therm' + str(self._sens_num)
 
-                    if conversion > 0:  # avoid divied by zero
+                    try:
                         rt = voltage / itherm
                         tempk = (25 + 273.15) * beta / (beta + (25 + 273.15) * (log(rt) - log(r_at_25)))
-                    else:
-                        tempk = 0
-                    dkey = 'adc_ext_therm' + str(self._sens_num)
+                    except ZeroDivisionError:
+                        self.logger.warn('conversion error on external thermistor. conv=%s voltage=%s int_ref=%s itherm=%s',
+                                         conversion, voltage, int_ref, itherm)
+                        tempk = self.tlm_dict[dkey]  # Use previous reading
                     self.tlm_dict[dkey] = tempk
 
             # IOVDD +
@@ -291,6 +296,8 @@ class AD7124(object):
             # VR8 used for themistor
             elif channel == 6:
                 ch_flgs[6] = True
+                if conversion == 0:
+                    self.logger.warn('ADC %d: VR8 is 0', self.idx)
                 vr8 = (conversion * int_ref) / 2**24
                 dkey = 'itherm' + str(self._sens_num)
                 ir8 = vr8/5620
