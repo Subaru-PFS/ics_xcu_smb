@@ -34,18 +34,18 @@ class TcpServer(threading.Thread):
                 
             if s in readable:
                 conn, addr = s.accept()
-                self.logger.info('command connection from %s, %s' % (conn, addr))
+                self.logger.debug('command connection from %s, %s' % (conn, addr))
                 continue
                 
             if conn in readable:
                 data = conn.recv(1024)
-                # Convert byte data to string
-                data = data.decode('latin-1')
-                
                 if not data:
-                    self.logger.warn('socket %s closed', conn)
+                    self.logger.debug('socket %s closed', conn)
                     conn = None
                     continue
+                
+                # Convert byte data to string
+                data = data.decode('latin-1')
                 data = data.strip()
                 if not data:
                     self.logger.warn('ignoring empty command')
@@ -68,6 +68,6 @@ class TcpServer(threading.Thread):
     def __enqueue_cmd(self, strdata):
         smb_cmd = SmbCmd(self.db)
         cmd_dict = smb_cmd.parse_smb_cmd(strdata)
-        self.logger.info('cmd %s, %s' % (strdata, smb_cmd))
+        self.logger.debug('cmd %s, %s', strdata, cmd_dict)
         if not self.qcmd.full():
             self.qcmd.put(cmd_dict)
