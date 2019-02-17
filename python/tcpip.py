@@ -65,8 +65,11 @@ class TcpServer(threading.Thread):
                     conn.sendall(data.encode('latin-1'))
 
     def __enqueue_cmd(self, strdata):
-        smb_cmd = SmbCmd(self.db)
-        cmd_dict = smb_cmd.parse_smb_cmd(strdata)
-        self.logger.debug('cmd %s, %s', strdata, cmd_dict)
-        if not self.qcmd.full():
-            self.qcmd.put(cmd_dict)
+        if strdata[0] in '~?':
+            smb_cmd = SmbCmd(self.db)
+            cmd_dict = smb_cmd.parse_smb_cmd(strdata)
+            self.logger.info('cmd %s, %s' % (strdata, smb_cmd))
+            if not self.qcmd.full():
+                self.qcmd.put(cmd_dict)
+        else:
+            self.qcmd.put(strdata)

@@ -6,11 +6,17 @@ import queue
 import natsort
 import quieres
 
+class CmdException(Exception):
+    @property
+    def msg(self):
+        return self.args[0]
+
 class CmdLoop(threading.Thread):
     def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015,
                  qcommand, qtransmit):
 
         self.logger = logging.getLogger('smb')
+        self.logger.setLevel(logging.INFO)
         self.db = smbdb
         self.tlm_dict = tlm_dict
         self.bb = bang_bangs
@@ -37,8 +43,34 @@ class CmdLoop(threading.Thread):
                 else:
                     continue
                 
-            self.process_queued_cmd(cmd)
+            if isinstance(cmd, str):
+                try:
+                    self.logger.info('processing raw cmd: %s', cmd)
+                    self.process_string_cmd(cmd)
+                except CmdException as e:
+                    self.logger.warn('command failure: %s', e)
+                    self.qxmit.put('FATAL ERROR: %s' % e.msg)
+                except Exception as e:
+                    self.logger.warn('command failure: %s', e)
+                    self.qxmit.put('FATAL ERROR')
+            else:
+                self.process_queued_cmd(cmd)
 
+    def process_string_cmd(self, cmdstr):
+        cmd, *args = cmdstr.split(',')
+        cmd = cmd.lower()
+
+        if cmd == 'readhtrreg':
+            htrId, name = args
+            htrId = int(htrId)
+            ret = self.heaters[htrId].dac.dac_read_register(name)
+            self.qxmit.put(ret)
+        elif cmd == 'setperiod':
+            period, = args
+            period = float(period)
+            
+            self.qxmit.put('OK')
+            
     def process_queued_cmd(self, cmd_dict):
         logging.debug('processing cmd: %s' % (cmd_dict))
         
