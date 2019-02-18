@@ -111,6 +111,9 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     # Create Bang-Bang heater objects
     bang_bangs = [bb(i, io) for i in range(2)]
 
+    for h in heaters:
+        h.logger.setLevel(logging.DEBUG)
+        
     # Get data, service PID etc.
     # Once this is started, all access to io resources (GPIO, I2C, SPI) must use Gbl.ioLock
     #

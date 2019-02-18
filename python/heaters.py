@@ -173,14 +173,15 @@ class PidHeater(object):
         totalRequest = max(0, min(maxTotalBits, totalRequest))
         baseRequest = totalRequest//4
         residualRequest = totalRequest%4
-
+        self.logger.debug('htr %d: current=%0.4f base=0x%04x residual=%d',
+                          self._heater_num, current, baseRequest, residualRequest)
         with Gbl.ioLock:
             self.update_one_dac('a', baseRequest + (residualRequest > 0))
             self.update_one_dac('b', baseRequest + (residualRequest > 1))
             self.update_one_dac('c', baseRequest + (residualRequest > 2))
             self.update_one_dac('d', baseRequest)
             self._heater_current = current
-            
+
         quieres.db_update_htr_params(self.db, current, 'htr_current', self._heater_num)
 
     def htr_set_heater_current_byDAC(self, current):
