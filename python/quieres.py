@@ -155,23 +155,6 @@ def db_adc_fetch_sensor_constants(db, sns_type):
 
     return adc_sns_const_dict
 
-def db_table_data_to_dictionary(db, tblname):
-    query = QSqlQuery(db)
-    query.exec_("SELECT * FROM " + tblname)
-    data_list = []
-    column_names = db_fetch_table_fields(db, tblname)
-
-    data_dict = {}
-    data = []
-    i = 0
-    while query.next():
-        for i in range(len(column_names)):
-            data_dict[column_names[i]] = query.value(i)
-            data_list.append(data_dict)
-        data_dict = {}
-
-    return data_list
-
 def db_ads1015_fetch_names_n_values(db, regname):
 
     query = QSqlQuery(db)
