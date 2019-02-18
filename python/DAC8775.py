@@ -127,7 +127,7 @@ class DAC(object):
         status = self.dac_read_register('status')
         self.logger.debug('htr %d status: %s', self.idx, status)
         badBits = {'fa', 'fb', 'fc', 'fd', 'wdt', 'cre', 'tmp'}
-        goodBits = {'fga', 'fgb', 'fgc', 'fgd'}
+        goodBits = {'pga', 'pgb', 'pgc', 'pgd'}
         for b in badBits:
             if status[b]:
                 self.logger.warn('htr %d error: %s is set', self.idx, b)
