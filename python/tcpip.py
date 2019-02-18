@@ -68,7 +68,7 @@ class TcpServer(threading.Thread):
         if strdata[0] in '~?':
             smb_cmd = SmbCmd(self.db)
             cmd_dict = smb_cmd.parse_smb_cmd(strdata)
-            self.logger.info('cmd %s, %s' % (strdata, smb_cmd))
+            self.logger.debug('cmd %s, %s' % (strdata, smb_cmd))
             if not self.qcmd.full():
                 self.qcmd.put(cmd_dict)
         else:

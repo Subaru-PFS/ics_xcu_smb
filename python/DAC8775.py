@@ -63,7 +63,10 @@ class DAC(object):
             keyname = item['NAME']
             dataval = (value >> item['SHIFT']) & item['MASK']
             dict_register[keyname] = dataval
-
+            self.logger.debug('heater %d read reg %s/%d, %s= 0x%04x/%d, 0x%04x/%d',
+                              self.idx, reg_name, (regid & ~self._READ_FLAG),
+                              keyname, value, value,
+                              dataval, dataval)
         return dict_register
 
     def dac_write_dac_data_reg(self, write_bytes):
