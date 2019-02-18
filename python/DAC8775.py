@@ -2,6 +2,7 @@ import logging
 
 from utilities import getbytes_from_reg_bits
 import quieres
+from spi_bus import DacSpi
 
 import Gbl
 
@@ -24,7 +25,7 @@ class DAC(object):
         self._HIGH = bool(1)
         # self.spi_obj = spi_bus.RPi3Spi(1, mode=0, cs_id=0, max_speed_hz=1000)
 
-        self.spi_obj = spi # DacSpi(self.idx)
+        self.spi_obj = DacSpi(self.idx, io)
         self.pins = io
         self.__dac_initialize()
 
