@@ -229,7 +229,7 @@ class PidHeater(object):
             dict_sel_dac_reg['chb'] = True
             dict_sel_dac_reg['chc'] = True
             dict_sel_dac_reg['chd'] = True
-            self.dac.dac_write_register('select_dac',  **dict_sel_dac_reg)
+            self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
             self.dac.dac_write_dac_data_reg(0x0000)
             dict_sel_dac_reg['cha'] = False
             dict_sel_dac_reg['chb'] = False
@@ -274,7 +274,16 @@ class PidHeater(object):
         with Gbl.ioLock:
             self.select_one_dac(dac)
             self.dac.dac_write_dac_data_reg(value)
-        
+
+            self.select_one_dac(dac)
+            check = self.dac.dac_read_dac_data_reg()
+
+        if value != check:
+            self.logger.warn('DAC readback failed. expected 0x%04x, got 0x%04x',
+                             value, check)
+            
+        self.dac.dac_check_status()
+            
     # </editor-fold>
 
     # <editor-fold desc="******************* PID Methods *******************">

@@ -442,7 +442,10 @@ class AD7124(object):
                     result_dict = self.adc_read_register_to_dict(reg_name)
                 if reg_dict["enable"] == 1:
                     if result_dict != reg_dict:
-                        raise ValueError
+                        raise ValueError("ADC %d channel %d configuration mismatch; expected %s got %s" % (self.idx,
+                                                                                                           i, reg_dict,
+                                                                                                           result_dict))
+                                         
         except ValueError as err:
             self.logger.warn(err.args)
 
@@ -455,7 +458,8 @@ class AD7124(object):
                     self.__adc_write_register(reg_name, **reg_dict)
                     result_dict = self.adc_read_register_to_dict(reg_name)
                 if result_dict != reg_dict:
-                    raise ValueError
+                    raise ValueError("ADC %d configuration %d mismatch; expected %s got %s" % (self.idx,
+                                                                                               i, reg_dict, result_dict))
 
         except ValueError as err:
             self.logger.warn(err.args)
