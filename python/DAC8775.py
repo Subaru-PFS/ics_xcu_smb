@@ -69,19 +69,32 @@ class DAC(object):
                               dataval, dataval)
         return dict_register
 
-    def dac_write_dac_data_reg(self, write_bytes):
+    def dac_write_dac_data_reg(self, value):
+        """ Write a DAC data value.
+
+        Args
+        ----
+        value : int 
+          Must be 0...0xffff. Clipped to that.
+
+        """
+
+        if value < 0:
+            self.logger.warn('clipping heater %d request %s up to 0', self.idx, value)
+            value = 0
+        if value > 0xffff:
+            self.logger.warn('clipping heater %d request %s down to 0xffff', self.idx, value)
+            value = 0xffff
 
         regid = self.__search_reg_address_from_name('DAC_data')
-        rbytes = write_bytes.to_bytes((write_bytes.bit_length() + 7) // 8, byteorder='big')
-        bytelist = [regid]
-        for val in rbytes:
-            bytelist.append(val)
-        while len(bytelist) < 3:
-            bytelist.insert(1, self._DUMMY_BYTE)
+        rbytes = value.to_bytes(2, byteorder='big')
+        bytelist = bytearray([regid])
+        bytelist.extend(rbytes)
 
         with Gbl.ioLock:
             self.spi_obj.xfer(bytelist)
-        self.logger.debug('wrote data reg: %s', ','.join(['0x%02x'%b for b in bytelist]))
+        self.logger.debug('htr %d: wrote data reg: 0x%04x, %s', self.idx,
+                          value, ','.join(['0x%02x'%b for b in bytelist]))
         
     def dac_read_dac_data_reg(self):
 
