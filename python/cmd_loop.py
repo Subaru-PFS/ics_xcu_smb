@@ -109,7 +109,7 @@ class CmdLoop(threading.Thread):
             self.logger.warn('qxmit full!')
             return -1
 
-        self.logger.info('executing read cmd %s', cmd)
+        self.logger.info('executing read cmd %s %s', cmd, p1)
         
         # fetch Heater Mode (0=Disabled, 1=Fixed Percent, 2=PID Control)
         if cmd == 'L':
@@ -248,7 +248,7 @@ class CmdLoop(threading.Thread):
         p2max = cmd_dict["P2_MAX"]
         output =  '~' + cmd + ', ' + str(p1) +  ', ' + str(p2)
 
-        self.logger.info('executing write cmd %s', cmd)
+        self.logger.info('executing write cmd %s %s %s', cmd, p1, p2)
 
         if p1 < p1min or p1 > p1max or p2 < p2min or p2 > p2max:
             output = "bad command"
