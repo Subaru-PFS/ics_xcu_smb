@@ -1,8 +1,10 @@
 import logging
 import time
-from math import log
-from Sensor import sensor
 import math
+
+import numpy as np
+
+from Sensor import sensor
 import utilities
 from utilities import getbytes_from_reg_bits
 import quieres
@@ -46,6 +48,8 @@ class AD7124(object):
         self.__adc_initialize()
         self.sns = sensor(self.db, self._sns_type_id)  # Create sensor object for this ADC.
 
+        self.lastReading = np.nan
+        
     # <editor-fold desc="******************** ADC Properties ********************">
 
     @property
@@ -219,6 +223,8 @@ class AD7124(object):
             # Temp Sensor Channel
             if channel == 0:
                 ch_flgs[0] = True
+                if conversion == 2**24-1:
+                    conversion = np.nan
                 rt = (conversion - (2 ** 23)) * self._ref_resistor / (self._adc_gain * (2 ** 23))
                 self.logger.debug('cnv=%g res=%g adc_gain=%g rt=%g',
                                   conversion - (2 ** 23),
@@ -227,6 +233,14 @@ class AD7124(object):
                 # RTD PT100 or PT1000
                 if self._sns_type_id == 1 or self._sns_type_id == 2:
                     rtd_temperature = self.temperature_from_rtd(rt)
+
+                    if rtd_temperature <= 1 or rtd_temperature > 380:
+                        self.logger.warning('ADC %d: replacing out-of-range reading %s with %s',
+                                            self._sens_num, rtd_temperature, self.lastReading)
+                        rtd_temperature = self.lastReading
+                        self.lastReading = np.inf
+                    else:
+                        self.lastReading = rtd_temperature
 
                 # NTC Thermistor
                 elif self._sns_type_id == 3:
@@ -256,7 +270,7 @@ class AD7124(object):
 
                     try:
                         rt = voltage / itherm
-                        tempk = (25 + 273.15) * beta / (beta + (25 + 273.15) * (log(rt) - log(r_at_25)))
+                        tempk = (25 + 273.15) * beta / (beta + (25 + 273.15) * (math.log(rt) - math.log(r_at_25)))
                     except ZeroDivisionError:
                         self.logger.warn('conversion error on external thermistor. conv=%s voltage=%s int_ref=%s itherm=%s',
                                          conversion, voltage, int_ref, itherm)
