@@ -69,26 +69,28 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     time.sleep(.001)
 
     io.dac_bank_sel(1)
-    # create BUS Objects
-    bus1 = DacSpi(0, io)
-    bus2 = DacSpi(1, io)
 
-    bus1.xfer([3, 0, 0x10])
-    bus2.xfer([3, 0, 0x10])
-    time.sleep(.002)
+    if False:
+        # create BUS Objects
+        bus1 = DacSpi(0, io)
+        bus2 = DacSpi(1, io)
 
-    # issue read command
-    data1 = bus1.xfer([0x83, 0, 0x10])
-    data2 = bus1.xfer([0, 0, 0])
+        bus1.xfer([3, 0, 0x10])
+        bus2.xfer([3, 0, 0x10])
+        time.sleep(.002)
 
-    logger.debug('data1: %s', data1)
-    logger.debug('data2: %s', data2)
-    # issue read command
-    data3 = bus2.xfer([0x83, 0, 0x10])
-    data4 = bus2.xfer([0, 0, 0])
+        # issue read command
+        data1 = bus1.xfer([0x83, 0, 0x10])
+        data2 = bus1.xfer([0, 0, 0])
 
-    logger.debug('data3: %s', data3)
-    logger.debug('data4: %s', data4)
+        logger.info('data1: %s', data1)
+        logger.info('data2: %s', data2)
+        # issue read command
+        data3 = bus2.xfer([0x83, 0, 0x10])
+        data4 = bus2.xfer([0, 0, 0])
+
+        logger.info('data3: %s', data3)
+        logger.info('data4: %s', data4)
 
     # Create SPI Bus object
     spi = spidev.SpiDev()  # create spi object
