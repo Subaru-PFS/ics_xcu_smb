@@ -7,23 +7,26 @@ Created on Thu Jan 25 08:38:35 2018
 
 import threading
 
+import numpy as np
+
 ioLock = threading.RLock()
 
 # Global Dictionary to hold shared TLM values
 telemetry = {
     'humidity': 0.0,
-    'rtd1': 0.0,
-    'rtd2': 0.0,
-    'rtd3': 0.0,
-    'rtd4': 0.0,
-    'rtd5': 0.0,
-    'rtd6': 0.0,
-    'rtd7': 0.0,
-    'rtd8': 0.0,
-    'rtd9': 0.0,
-    'rtd10': 0.0,
-    'rtd11': 0.0,
-    'rtd12': 0.0,
+    'rtd0': np.nan,
+    'rtd1': np.nan,
+    'rtd2': np.nan,
+    'rtd3': np.nan,
+    'rtd4': np.nan,
+    'rtd5': np.nan,
+    'rtd6': np.nan,
+    'rtd7': np.nan,
+    'rtd8': np.nan,
+    'rtd9': np.nan,
+    'rtd10': np.nan,
+    'rtd11': np.nan,
+    'rtd12': np.nan,
     'adc_int_temp1': 0.0,
     'adc_int_temp2': 0.0,
     'adc_int_temp3': 0.0,
