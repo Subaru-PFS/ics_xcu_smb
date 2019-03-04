@@ -3,6 +3,8 @@ import threading
 import os
 import queue
 
+import numpy as np
+
 import natsort
 import quieres
 
@@ -118,11 +120,7 @@ class CmdLoop(threading.Thread):
 
         # Read temperatures from all channels
         elif cmd == 't':
-            readings = []
-            for item in natsort.natsorted(self.tlm_dict):
-                if 'rtd' in item:
-                    readings.append("%.4f" % self.tlm_dict[item])
-
+            readings = [("%0.4f" % self.tlm_dict['rtd%d' % i]) for i in range(1,13)]
             output = ','.join(readings)
             self.logger.debug('%s readings: %s, output: %s', cmd, readings, output)
 
