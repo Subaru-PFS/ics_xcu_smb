@@ -184,44 +184,6 @@ class PidHeater(object):
 
         quieres.db_update_htr_params(self.db, current, 'htr_current', self._heater_num)
 
-    def htr_set_heater_current_byDAC(self, current):
-        """Set all the the current DAC registers for this heater. 
-
-        Args
-        ----
-        current : float
-          Requested current, clipped to 0 to 0.086A
-
-        The output is the sum of four 0.024A DAC channels named 'A'
-        through 'D'. These are turned on in order as the load
-        requires.
-
-        """
-
-        if current < 0:
-            current = 0.0
-        if current > 4*self._maxCurrent:
-            current = 4*self._maxCurrent
-            
-        def currentToHex(current):
-            current = max(0.0, current)
-            hexval = int(0xffff / self._maxCurrent * current)
-            return min(0xffff, hexval)
-
-        acurrent = min(0.024, current)
-        bcurrent = min(0.048, current) - 0.024
-        ccurrent = min(0.072, current) - 0.048
-        dcurrent = current - 0.072
-
-        with Gbl.ioLock:
-            self.update_one_dac('a', currentToHex(acurrent))
-            self.update_one_dac('b', currentToHex(bcurrent))
-            self.update_one_dac('c', currentToHex(ccurrent))
-            self.update_one_dac('d', currentToHex(dcurrent))
-            self._heater_current = current
-
-        quieres.db_update_htr_params(self.db, current, 'htr_current', self._heater_num)
-
     def set_all_currents_to_zero(self):
         with Gbl.ioLock:
             dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
