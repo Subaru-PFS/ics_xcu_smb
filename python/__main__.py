@@ -172,7 +172,7 @@ def main(argv=None):
                         help='logging threshold. 10=debug, 20=info, 30=warn')
     parser.add_argument('--noGUI', action='store_true',
                         help='do not start X GUI')
-    parser.add_argument('--sensorPeriod', type=float, default=1.0,
+    parser.add_argument('--sensorPeriod', type=float, default=10.0,
                         help='how often to sample the sensors')
 
     opts = parser.parse_args(argv)
@@ -183,4 +183,3 @@ def main(argv=None):
 if __name__ == "__main__":
     main()
 
-# TODO: get t2 loop to place nice with the other tasks
