@@ -38,7 +38,9 @@ class SensorThread(threading.Thread):
                     except Exception as e:
                         self.logger.warn("failed to read adc %d: %s", adc.idx, e)
                 self.logger.debug("finished sensor conversions")
-
+                for h in self.heaters:
+                    h.updateControlLoop(self.adcs)
+                    
                 if self.__exitEvent.is_set():
                     self.logger.info("exiting sensor loop because we were asked to.")
                     return

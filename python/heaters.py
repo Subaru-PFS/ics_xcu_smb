@@ -260,9 +260,7 @@ class PidHeater(object):
         else:
             return value
 
-    def calculate_pid(self, setpoint, pv):
-
-        self._heater_set_pt = setpoint
+    def calculate_pid(self, pv):
         error = self._heater_set_pt - pv
         self.mv_i += self._heater_i_term * error
         self.mv_i = self.pid_bounds_check(self.mv_i)
@@ -272,6 +270,16 @@ class PidHeater(object):
 
         return self.pid_bounds_check(mv)
 
+    def updateControlLoop(self, adcs):
+        if self.heater_mode != 2:
+            return
+
+        sensor = 'rtd%d' % (self.heater_ctrl_sensor)
+        pv = Gbl.telemetry[sensor]
+        output = self.calculate_pid(pv)
+        
+        self.logger.debug('htr %d: sensor=%s, setpoint=%g, pv=%g, value=%g',
+                          self._heater_num, sensor, self.heater_set_pt,
+                          pv, output)
     # </editor-fold>
 
-    # TODO: Bild PID control loop.
