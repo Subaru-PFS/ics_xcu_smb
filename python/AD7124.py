@@ -199,6 +199,7 @@ class AD7124(object):
         elif self._temp_unit == 1:
             return temperature_c
         elif self._temp_unit == 2:
+            temperature_f = utilities.temp_k_to_f(temperature_k)
             return temperature_f
         else:
             return temperature_k
@@ -244,10 +245,16 @@ class AD7124(object):
                     else:
                         self.lastReading = rtd_temperature
 
+                    dkey = 'rtd' + str(self._sens_num)
+                    self.tlm_dict[dkey] = rtd_temperature
+
                 # NTC Thermistor
                 elif self._sns_type_id == 3:
                     ntc_temperature = self.temperature_from_ntc_thermistor(rt)
+                    dkey = 'adc_ext_therm1' + str(self._sens_num)
+                    self.tlm_dict[dkey] = ntc_temperature
 
+                # Engineering units
                 voltage = rt * self.__adc_exciation_setting_to_current(self._adc_excitation_code)
                 dkey = 'adc_counts' + str(self._sens_num)
                 self.tlm_dict[dkey] = conversion
@@ -255,10 +262,6 @@ class AD7124(object):
                 self.tlm_dict[dkey] = voltage
                 dkey = 'adc_sns_ohms' + str(self._sens_num)
                 self.tlm_dict[dkey] = rt
-                dkey = 'rtd' + str(self._sens_num)
-                self.tlm_dict[dkey] = rtd_temperature
-                dkey = 'adc_ext_therm1' + str(self._sens_num)
-                self.tlm_dict[dkey] = ntc_temperature
 
             # External 10K Thermistor
             elif channel == 1:
