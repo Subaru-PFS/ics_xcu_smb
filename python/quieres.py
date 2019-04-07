@@ -162,9 +162,9 @@ def db_ads1015_fetch_names_n_values(db, regname):
 
     qrytxt = "select {name}, {value} from {tn} inner join tblADS1015Registers on {parent} = tblADS1015Registers.ADDRESS " \
              "where tblADS1015Registers.NAME = '{rn}'".format(name=tablename + ".NAME",
-                                                          value=tablename + ".VALUE",
-                                                          tn=tablename, parent=tablename + ".FK_PARENT_ID",
-                                                          rn=regname)
+                                                              value=tablename + ".VALUE",
+                                                              tn=tablename, parent=tablename + ".FK_PARENT_ID",
+                                                              rn=regname)
     query.exec_(qrytxt)
     regdict = {}
 
