@@ -34,6 +34,7 @@ class AD7124(object):
         self.idx = idx  # index of ADC (0 to 11)
         self._sens_num = idx + 1  # Sensor number (1 to 12)
         parameters = quieres.db_adc_fetch_params(self.db, self._sens_num)  # ID, units, sensor type, gain
+        self.activeAchannels = []
         self._temp_unit = parameters['temperature_unit']  # (0=K 1=C 2=F)
         self._sns_type_id = parameters['sensor_type']
         self._adc_gain = parameters['gain']
@@ -206,7 +207,7 @@ class AD7124(object):
     def read_conversion_data(self):
         int_ref = 2.50  # ADC internal reference voltage
         # avdd = 3.3
-        ch_flgs = [False, False, False, False, True, False, False]
+        ch_flgs = [not(active) for active in self.activeChannels]
         done = False
         rtd_temperature = 0.0
         ntc_temperature = 0.0
@@ -320,7 +321,7 @@ class AD7124(object):
                 self.logger.warn("bad channel: %s", channel)
                 done = True
 
-            if ch_flgs[0] & ch_flgs[1] & ch_flgs[2] & ch_flgs[3] & ch_flgs[4] & ch_flgs[5] & ch_flgs[6] is True:
+            if all(ch_flgs):
                 done = True
 
     def adc_set_filter_rate(self, rate):
@@ -448,12 +449,14 @@ class AD7124(object):
 
     def __adc_config_channels(self):
         try:
+            self.activeChannels = []
             for i in range(16):
                 reg_name = 'Channel_' + str(i)
                 reg_dict = quieres.db_adc_fetch_names_n_values(self.db, reg_name, self._sens_num)
                 with Gbl.ioLock:
                     self.__adc_write_register(reg_name, **reg_dict)
                     result_dict = self.adc_read_register_to_dict(reg_name)
+                self.activeChannels.append(reg_dict["enable"] == 1)
                 if reg_dict["enable"] == 1:
                     if result_dict != reg_dict:
                         raise ValueError("ADC %d channel %d configuration mismatch; expected %s got %s" % (self.idx,
