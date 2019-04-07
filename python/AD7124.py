@@ -191,9 +191,8 @@ class AD7124(object):
             temperature_c = (-A + math.sqrt(A ** 2 - 4 * B * (1 - rt / r0))) / (2 * B)
         except ValueError:
             self.logger.warn('conversion error for %s, sns=%s', rt, self.sns)
-            temperature_c = 100.0
+            temperature_c = np.nan
         temperature_k = temperature_c + 273.15
-        temperature_f = utilities.temp_k_to_f(temperature_k)
 
         if self._temp_unit == 0:
             return temperature_k
@@ -239,7 +238,7 @@ class AD7124(object):
                         self.logger.warning('ADC %d: replacing out-of-range reading %s with %s',
                                             self._sens_num, rtd_temperature, self.lastReading)
                         rtd_temperature = self.lastReading
-                        self.lastReading = np.inf
+                        self.lastReading = np.nan
                     else:
                         self.lastReading = rtd_temperature
 
