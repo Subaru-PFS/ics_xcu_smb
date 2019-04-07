@@ -234,7 +234,9 @@ class AD7124(object):
                 if self._sns_type_id == 1 or self._sns_type_id == 2:
                     rtd_temperature = self.temperature_from_rtd(rt)
 
-                    if rtd_temperature <= 1 or rtd_temperature > 380:
+                    if (rtd_temperature <= 1 or rtd_temperature > 380
+                        or np.isfinite(self.lastReading) and abs(rtd_temperature - self.lastReading) > 30):
+                        
                         self.logger.warning('ADC %d: replacing out-of-range reading %s with %s',
                                             self._sens_num, rtd_temperature, self.lastReading)
                         rtd_temperature = self.lastReading
