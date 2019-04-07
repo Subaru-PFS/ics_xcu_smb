@@ -146,7 +146,7 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
         try:
             select.select([],[],[],None)
         except (KeyboardInterrupt, Exception) as e:
-            logger.warning('exiting main program due to: %s' % (e))
+            logger.warning('exiting main program due to: %s', e)
 
     cmdThread.pleaseExit()
     sensorThread.pleaseExit()

@@ -228,7 +228,7 @@ class CmdLoop(threading.Thread):
             output = str("cmd not yet implemented")
 
         else:
-            return -1
+            raise ValueError('unknown command %s' % cmd)
 
         if output == '':
             output = 'NO VALUE'
@@ -321,7 +321,9 @@ class CmdLoop(threading.Thread):
             output = '~' + cmd
 
         else:
-            return -1
+            self.logger.warn('UNKNOWN command: %s', cmd)
+            raise ValueError('unknown command %s' % cmd)
+        
         self.qxmit.put(output)
         return 1
 

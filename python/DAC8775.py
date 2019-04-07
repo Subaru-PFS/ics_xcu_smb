@@ -1,4 +1,5 @@
 import logging
+import time
 
 from utilities import getbytes_from_reg_bits
 import quieres
@@ -124,17 +125,28 @@ class DAC(object):
         return dacdata
 
     def dac_check_status(self):
-        status = self.dac_read_register('status')
-        self.logger.debug('htr %d status: %s', self.idx, status)
-        badBits = {'fa', 'fb', 'fc', 'fd', 'wdt', 'cre', 'tmp'}
-        goodBits = {'pga', 'pgb', 'pgc', 'pgd'}
-        for b in badBits:
-            if status[b]:
-                self.logger.warn('htr %d error: %s is set', self.idx, b)
-        for b in goodBits:
-            if not status[b]:
-                self.logger.warn('htr %d error: %s is not set', self.idx, b)
+        retries = 2
+        doReset = dict()
+        while retries > 0:
+            retries -= 1
+            status = self.dac_read_register('status')
+            self.logger.debug('htr %d status: %s', self.idx, status)
+            badBits = {'fa', 'fb', 'fc', 'fd', 'wdt', 'cre', 'tmp'}
+            goodBits = {'pga', 'pgb', 'pgc', 'pgd'}
+            for b in badBits:
+                if status[b]:
+                    self.logger.warn('htr %d error: %s is set', self.idx, b)
+                    doReset[b] = 1
+            for b in goodBits:
+                if not status[b]:
+                    self.logger.warn('htr %d error: %s is not set', self.idx, b)
 
+            if doReset and retries > 0:
+                self.dac_write_register('status', **doReset)
+                time.sleep(0.001)
+            else:
+                retries = 0
+            
     # def dac_aliveness_check(self):
     #     self.dac_write_register('reset_config', 'tblDacResetConfigReg',
     #                             ubt=True, poc=False, clr=False, trn=False, ref_en=False,
