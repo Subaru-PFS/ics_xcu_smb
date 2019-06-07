@@ -227,10 +227,11 @@ class AD7124(object):
                 if conversion == 2**24-1:
                     conversion = np.nan
                 rt = (conversion - (2 ** 23)) * self._ref_resistor / (self._adc_gain * (2 ** 23))
-                self.logger.debug('cnv=%g res=%g adc_gain=%g rt=%g',
+                self.logger.debug('cnv=%g res=%g adc_gain=%g rt=%g type=%d',
                                   conversion - (2 ** 23),
                                   self._ref_resistor,
-                                  self._adc_gain, rt)
+                                  self._adc_gain, rt,
+                                  self._sns_type_id)
                 # RTD PT100 or PT1000
                 if self._sns_type_id == 1 or self._sns_type_id == 2:
                     rtd_temperature = self.temperature_from_rtd(rt)
