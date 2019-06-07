@@ -97,7 +97,7 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     spi_id = 0
     cs_id = 0
     spi.open(spi_id, cs_id)
-    spi.max_speed_hz = 7000
+    spi.max_speed_hz = 2000000
     spi.mode = 3
     spi.cshigh = True
 
