@@ -217,6 +217,7 @@ class AD7124(object):
             with Gbl.ioLock:
                 channel = self.__wait_end_of_conversion(1)
                 data_24 = self.__adc_read_register('Data', 3)  # read three conversion bytes
+
             self.logger.debug('conversion %d %d %s', self.idx, channel, data_24)
             data_24.pop(0)
             conversion = int.from_bytes(data_24, byteorder='big', signed=False)
@@ -323,7 +324,7 @@ class AD7124(object):
                 ir8 = vr8/5620
                 self.tlm_dict[dkey] = ir8
             else:
-                self.logger.warn("bad channel: %s", channel)
+                self.logger.warn("ADC %d bad channel: %s", self.idx, channel)
                 done = True
 
             if all(ch_flgs):
@@ -408,7 +409,7 @@ class AD7124(object):
 
     def log_errors(self):
         errors = self.adc_read_register_to_dict('Error')
-        self.logger.error("errors=%s" % (errors))
+        self.logger.error("ADC %d errors=%s" % (self.idx, errors))
         
     def __wait_end_of_conversion(self, timeout_s):
         starttime = time.time()
@@ -420,7 +421,7 @@ class AD7124(object):
             nready = data_8['n_rdy']
             currtime = time.time()
             if currtime - starttime > timeout_s:
-                self.logger.warn("timeout %f, data=%s" % (currtime - starttime, data_8))
+                self.logger.warn("ADC %d timeout %f, data=%s" % (self.idx, currtime - starttime, data_8))
                 self.log_errors()
                 return -1
         return data_8['ch_active']  # return current channel#
