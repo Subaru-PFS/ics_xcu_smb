@@ -405,17 +405,22 @@ class AD7124(object):
             self.pins.adc_sel(self.idx)
             self.spi_obj.xfer2(bytelist)
 
+    def log_errors(self):
+        errors = self.adc_read_register_to_dict('Error')
+        self.logger.error("errors=%s" % (errors))
+        
     def __wait_end_of_conversion(self, timeout_s):
         starttime = time.time()
         nready = 1
         data_8 = 0x00
-        while nready is 1:
+        while nready == 1:
             # data_8 = self.adc_read_status_register()
             data_8 = self.adc_read_register_to_dict('Status', muffleLog=True)
             nready = data_8['n_rdy']
             currtime = time.time()
             if currtime - starttime > timeout_s:
-                self.logger.warn("timeout %f" % (currtime - starttime))
+                self.logger.warn("timeout %f, data=%s" % (currtime - starttime, data_8))
+                self.log_errors()
                 return -1
         return data_8['ch_active']  # return current channel#
 
