@@ -34,6 +34,7 @@ class AD7124(object):
         self.idx = idx  # index of ADC (0 to 11)
         self._sens_num = idx + 1  # Sensor number (1 to 12)
         parameters = quieres.db_adc_fetch_params(self.db, self._sens_num)  # ID, units, sensor type, gain
+        self.activeAchannels = []
         self._temp_unit = parameters['temperature_unit']  # (0=K 1=C 2=F)
         self._sns_type_id = parameters['sensor_type']
         self._adc_gain = parameters['gain']
@@ -190,15 +191,15 @@ class AD7124(object):
             temperature_c = (-A + math.sqrt(A ** 2 - 4 * B * (1 - rt / r0))) / (2 * B)
         except ValueError:
             self.logger.warn('conversion error for %s, sns=%s', rt, self.sns)
-            temperature_c = 100.0
+            temperature_c = np.nan
         temperature_k = temperature_c + 273.15
-        temperature_f = utilities.temp_k_to_f(temperature_k)
 
         if self._temp_unit == 0:
             return temperature_k
         elif self._temp_unit == 1:
             return temperature_c
         elif self._temp_unit == 2:
+            temperature_f = utilities.temp_k_to_f(temperature_k)
             return temperature_f
         else:
             return temperature_k
@@ -206,7 +207,7 @@ class AD7124(object):
     def read_conversion_data(self):
         int_ref = 2.50  # ADC internal reference voltage
         # avdd = 3.3
-        ch_flgs = [False, False, False, False, True, False, False]
+        ch_flgs = [not(active) for active in self.activeChannels]
         done = False
         rtd_temperature = 0.0
         ntc_temperature = 0.0
@@ -216,6 +217,7 @@ class AD7124(object):
             with Gbl.ioLock:
                 channel = self.__wait_end_of_conversion(1)
                 data_24 = self.__adc_read_register('Data', 3)  # read three conversion bytes
+
             self.logger.debug('conversion %d %d %s', self.idx, channel, data_24)
             data_24.pop(0)
             conversion = int.from_bytes(data_24, byteorder='big', signed=False)
@@ -226,26 +228,35 @@ class AD7124(object):
                 if conversion == 2**24-1:
                     conversion = np.nan
                 rt = (conversion - (2 ** 23)) * self._ref_resistor / (self._adc_gain * (2 ** 23))
-                self.logger.debug('cnv=%g res=%g adc_gain=%g rt=%g',
+                self.logger.debug('cnv=%g res=%g adc_gain=%g rt=%g type=%d',
                                   conversion - (2 ** 23),
                                   self._ref_resistor,
-                                  self._adc_gain, rt)
+                                  self._adc_gain, rt,
+                                  self._sns_type_id)
                 # RTD PT100 or PT1000
                 if self._sns_type_id == 1 or self._sns_type_id == 2:
                     rtd_temperature = self.temperature_from_rtd(rt)
 
-                    if rtd_temperature <= 1 or rtd_temperature > 380:
+                    if (rtd_temperature <= 1 or rtd_temperature > 380
+                        or np.isfinite(self.lastReading) and abs(rtd_temperature - self.lastReading) > 30):
+                        
                         self.logger.warning('ADC %d: replacing out-of-range reading %s with %s',
                                             self._sens_num, rtd_temperature, self.lastReading)
                         rtd_temperature = self.lastReading
-                        self.lastReading = np.inf
+                        self.lastReading = np.nan
                     else:
                         self.lastReading = rtd_temperature
+
+                    dkey = 'rtd' + str(self._sens_num)
+                    self.tlm_dict[dkey] = rtd_temperature
 
                 # NTC Thermistor
                 elif self._sns_type_id == 3:
                     ntc_temperature = self.temperature_from_ntc_thermistor(rt)
+                    dkey = 'adc_ext_therm1' + str(self._sens_num)
+                    self.tlm_dict[dkey] = ntc_temperature
 
+                # Engineering units
                 voltage = rt * self.__adc_exciation_setting_to_current(self._adc_excitation_code)
                 dkey = 'adc_counts' + str(self._sens_num)
                 self.tlm_dict[dkey] = conversion
@@ -253,10 +264,6 @@ class AD7124(object):
                 self.tlm_dict[dkey] = voltage
                 dkey = 'adc_sns_ohms' + str(self._sens_num)
                 self.tlm_dict[dkey] = rt
-                dkey = 'rtd' + str(self._sens_num)
-                self.tlm_dict[dkey] = rtd_temperature
-                dkey = 'adc_ext_therm1' + str(self._sens_num)
-                self.tlm_dict[dkey] = ntc_temperature
 
             # External 10K Thermistor
             elif channel == 1:
@@ -317,10 +324,10 @@ class AD7124(object):
                 ir8 = vr8/5620
                 self.tlm_dict[dkey] = ir8
             else:
-                self.logger.warn("bad channel: %s", channel)
+                self.logger.warn("ADC %d bad channel: %s", self.idx, channel)
                 done = True
 
-            if ch_flgs[0] & ch_flgs[1] & ch_flgs[2] & ch_flgs[3] & ch_flgs[4] & ch_flgs[5] & ch_flgs[6] is True:
+            if all(ch_flgs):
                 done = True
 
     def adc_set_filter_rate(self, rate):
@@ -400,17 +407,22 @@ class AD7124(object):
             self.pins.adc_sel(self.idx)
             self.spi_obj.xfer2(bytelist)
 
+    def log_errors(self):
+        errors = self.adc_read_register_to_dict('Error')
+        self.logger.error("ADC %d errors=%s" % (self.idx, errors))
+        
     def __wait_end_of_conversion(self, timeout_s):
         starttime = time.time()
         nready = 1
         data_8 = 0x00
-        while nready is 1:
+        while nready == 1:
             # data_8 = self.adc_read_status_register()
             data_8 = self.adc_read_register_to_dict('Status', muffleLog=True)
             nready = data_8['n_rdy']
             currtime = time.time()
             if currtime - starttime > timeout_s:
-                self.logger.warn("timeout %f" % (currtime - starttime))
+                self.logger.warn("ADC %d timeout %f, data=%s" % (self.idx, currtime - starttime, data_8))
+                self.log_errors()
                 return -1
         return data_8['ch_active']  # return current channel#
 
@@ -448,12 +460,14 @@ class AD7124(object):
 
     def __adc_config_channels(self):
         try:
+            self.activeChannels = []
             for i in range(16):
                 reg_name = 'Channel_' + str(i)
                 reg_dict = quieres.db_adc_fetch_names_n_values(self.db, reg_name, self._sens_num)
                 with Gbl.ioLock:
                     self.__adc_write_register(reg_name, **reg_dict)
                     result_dict = self.adc_read_register_to_dict(reg_name)
+                self.activeChannels.append(reg_dict["enable"] == 1)
                 if reg_dict["enable"] == 1:
                     if result_dict != reg_dict:
                         raise ValueError("ADC %d channel %d configuration mismatch; expected %s got %s" % (self.idx,

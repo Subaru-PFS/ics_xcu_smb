@@ -97,7 +97,7 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     spi_id = 0
     cs_id = 0
     spi.open(spi_id, cs_id)
-    spi.max_speed_hz = 7000
+    spi.max_speed_hz = 2000000
     spi.mode = 3
     spi.cshigh = True
 
@@ -146,7 +146,7 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
         try:
             select.select([],[],[],None)
         except (KeyboardInterrupt, Exception) as e:
-            logger.warning('exiting main program due to: %s' % (e))
+            logger.warning('exiting main program due to: %s', e)
 
     cmdThread.pleaseExit()
     sensorThread.pleaseExit()
@@ -172,7 +172,7 @@ def main(argv=None):
                         help='logging threshold. 10=debug, 20=info, 30=warn')
     parser.add_argument('--noGUI', action='store_true',
                         help='do not start X GUI')
-    parser.add_argument('--sensorPeriod', type=float, default=10.0,
+    parser.add_argument('--sensorPeriod', type=float, default=1.0,
                         help='how often to sample the sensors')
 
     opts = parser.parse_args(argv)

@@ -1,0 +1,2 @@
+cd /db/ics_xcu_SMB
+nohup python3 python/__main__.py --noGUI "$@" >& /db/smb.log &

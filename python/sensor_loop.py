@@ -14,15 +14,14 @@ class SensorThread(threading.Thread):
         self.adcs = adcs
         self.heaters = heaters
         self.ads1015 = ads1015
-        self.loopTime = 0.5 if sensorPeriod is None else sensorPeriod
-        self.loopPeriod = 10.0
+        self.loopPeriod = 10.0 if sensorPeriod is None else sensorPeriod
         self.__exitEvent = threading.Event()
         
         threading.Thread.__init__(self, name='sensors', daemon=True)
 
     def pleaseExit(self):
         self.__exitEvent.set()
-        self.logger.warn('please wait up to %s seconds for the sensor loop to stop', self.loopTime)
+        self.logger.warn('please wait up to %s seconds for the sensor loop to stop', self.loopPeriod)
         
     def run(self):
         try:
@@ -51,13 +50,13 @@ class SensorThread(threading.Thread):
                     now = time.time()
                     dt = nextTime - now
                     
-                    if dt < 0.5:
+                    if dt < 0.01:
                         self.logger.warn('loop period is too short. last=%g, next=%g, dt=%g',
                                          lastTime, nextTime, nextTime-now)
-                        dt = 0.5
+                        dt = 0.01
                     time.sleep(dt)
                     lastTime = time.time()
                     
-        except KeyboardInterrupt:  # Ctrl+C pressed
-            return
+        except Exception as e:
+            self.logger.warn('sensor loop received and is ignoring exception: %s', e)
 
