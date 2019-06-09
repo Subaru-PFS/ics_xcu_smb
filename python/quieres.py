@@ -36,13 +36,13 @@ def db_fetch_table_fields(db, tblname):
 
 def db_dac_fetch_names_n_values(db, regname, dac_num):
     query = QSqlQuery(db)
-    tablename = 'tbldacRegBits' + str(dac_num)
+    tablename = 'tbldacRegBits'
 
     qrytxt = "select {name}, {value} from {tn} inner join tbldacRegisters on {parent} = tbldacRegisters.ADDRESS " \
-             "where tbldacRegisters.NAME = '{rn}'".format(name=tablename + ".NAME",
-                                                          value=tablename + ".VALUE",
-                                                          tn=tablename, parent=tablename + ".FK_PARENT_ID",
-                                                          rn=regname)
+             "where tbldacRegisters.NAME = '{rn}' and dac_num = {dac_num}".format(name=tablename + ".NAME",
+                                                                                  value=tablename + ".VALUE",
+                                                                                  tn=tablename, parent=tablename + ".FK_PARENT_ID",
+                                                                                  rn=regname, dac_num=dac_num)
     query.exec_(qrytxt)
     regdict = {}
     while query.next():
@@ -50,13 +50,13 @@ def db_dac_fetch_names_n_values(db, regname, dac_num):
     return regdict
 
 def db_dac_register_data_to_dictionary(db, regname, dac_num):
-    tablename = 'tbldacRegBits' + str(dac_num)
+    tablename = 'tbldacRegBits'
     query = QSqlQuery(db)
 
     qrytxt = "select {name}, {mask}, {shift}, {value} ,{parent} from {tn} inner join tbldacRegisters on " \
-             "{parent} = tbldacRegisters.ADDRESS where tbldacRegisters.NAME = '{rn}'" \
+             "{parent} = tbldacRegisters.ADDRESS where tbldacRegisters.NAME = '{rn}' and dac_num = {dac_num}" \
         .format(name=tablename + ".NAME", mask=tablename + ".MASK", shift=tablename + ".SHIFT",
-                value=tablename + ".VALUE", parent=tablename + ".FK_PARENT_ID", tn=tablename, rn=regname)
+                value=tablename + ".VALUE", parent=tablename + ".FK_PARENT_ID", tn=tablename, rn=regname, dac_num=dac_num)
     data_dict = {}
     data = []
     query.exec_(qrytxt)
@@ -102,13 +102,13 @@ def db_adc_fetch_params(db, sensor_num):
 def db_adc_fetch_names_n_values(db, regname, adc_num):
     # Retrive sub register names and values for a given register.
     query = QSqlQuery(db)
-    tablename = 'tblAdcRegBits' + str(adc_num)
+    tablename = 'tblAdcRegBits'
 
     qrytxt = "select {name}, {value} from {tn} inner join tblAdcRegisters on {parent} = tblAdcRegisters.ADDRESS " \
-             "where tblAdcRegisters.NAME = '{rn}'".format(name=tablename + ".NAME",
-                                                          value=tablename + ".VALUE",
-                                                          tn=tablename, parent=tablename + ".FK_PARENT_ID",
-                                                          rn=regname)
+             "where tblAdcRegisters.NAME = '{rn}' and adc_num = {adc_num}".format(name=tablename + ".NAME",
+                                                                                  value=tablename + ".VALUE",
+                                                                                  tn=tablename, parent=tablename + ".FK_PARENT_ID",
+                                                                                  rn=regname, adc_num=adc_num)
     query.exec_(qrytxt)
     regdict = {}
 
@@ -118,13 +118,13 @@ def db_adc_fetch_names_n_values(db, regname, adc_num):
     return regdict
 
 def db_adc_register_data_to_dictionary(db, regname, adc_num):
-    tablename = 'tblAdcRegBits' + str(adc_num)
+    tablename = 'tblAdcRegBits'
     query = QSqlQuery(db)
 
     qrytxt = "select {name}, {mask}, {shift}, {value} ,{parent} from {tn} inner join tblAdcRegisters on " \
-             "{parent} = tblAdcRegisters.ADDRESS where tblAdcRegisters.NAME = '{rn}'" \
+             "{parent} = tblAdcRegisters.ADDRESS where tblAdcRegisters.NAME = '{rn}' and adc_num = {adc_num}" \
         .format(name=tablename + ".NAME", mask=tablename + ".MASK", shift=tablename + ".SHIFT",
-                value=tablename + ".VALUE", parent=tablename + ".FK_PARENT_ID", tn=tablename, rn=regname)
+                value=tablename + ".VALUE", parent=tablename + ".FK_PARENT_ID", tn=tablename, rn=regname, adc_num=adc_num)
     data_dict = {}
     data = []
     query.exec_(qrytxt)
