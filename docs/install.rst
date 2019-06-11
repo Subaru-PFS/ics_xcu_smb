@@ -35,7 +35,7 @@ To turn a vanilla Raspbian Lite image into a mostly-configured PFS image,
 - touch /boot/ssh (enables ssh server for 1st (!!) connection).
 - eject and insert into a Pi for further configuration.
   
-Plug it in to any network with a DNCP server and boot it. ssh to
+Plug it in to any network with a DHCP server and boot it. ssh to
 pi@raspberrypi.local. Password is "raspberry".
 
 Install some additional packages. We need to update the installed
@@ -43,10 +43,14 @@ pacakges first, or there can be conflicts:
 
 - sudo apt-get update
 - sudo apt-get upgrade
-- sudo apt-get install lightdm emacs25-nox tcpdump strace lsof
-- sudo apt-get install lxde-core x11-utils x11-apps
-- sudo apt-get install ipython3 python3-numpy cython3
+- sudo apt-get install emacs25-nox tcpdump strace lsof sqlite3 git
+# - sudo apt-get install lightdm lxde-core x11-utils x11-apps
+- sudo apt-get install ipython3 python3-numpy cython3 python3-pip python3-pyqt5 python3-pyqt5.qtsql
 - sudo apt-get install christ what a clusterfuck.
+- pip3 install RPi.GPIO
+- pip3 install spidev
+- pip3 install smbus
+- pip3 install natsort
   
 - add /software to /etc/fstab (``nano /etc/fstab``, and add ``tron:/software /software defaults,ro 0 0``
 
@@ -60,6 +64,16 @@ Reboot and ssh back in, finish configuring:
   - Interfacing Options, enable SPI, enable I2C, enable VNC (this will install tons of packages)
   - Boot Options, B1: select B4 (Autologin to desktop GUI)
   - Advanced Options, A1 (Expand filesystem), A5 Resolution to 1280x1024
+
+Add boot image:
+- sudo mkdir /db
+- sudo chown pi:pi /db
+- sudo chmod 2775 /db
+- other stuff
+
+Disable interfaces:
+- Add "dtoverlay=pi3-disable-wifi" to /boot/config.txt
+- Add "dtoverlay=pi3-disable-bt" to /boot/config.txt
   
 Shutdown the pi, copy image _off_ of micro-SD card. Use that to build new systems.
 
