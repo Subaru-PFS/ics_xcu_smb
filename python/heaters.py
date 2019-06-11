@@ -7,9 +7,10 @@ import Gbl
 
 class PidHeater(object):
     """ pid_heater class """
-    def __init__(self, idx, smbdb, tlm_dict, spi, io):
+    def __init__(self, idx, smbdb, tlm_dict, spi, io,
+                 logLevel=logging.INFO):
         self.logger = logging.getLogger('heaters')
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logLevel)
         self.db = smbdb
 
         with Gbl.ioLock:
