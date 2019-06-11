@@ -1,5 +1,6 @@
 import atexit
 import logging
+import signal
 import threading
 
 import RPi.GPIO as GPIO
@@ -13,7 +14,10 @@ def cleanup():
         return
     
     logging.warn('reset GPIO configuration on exit. thread=%s' % (threading.current_thread().name))
-    
+
+def _sigtermCleanup(_sig, _stackFrame_):
+    raise SystemExit()
+
 class io(object):
 
     def __init__(self, ):
@@ -49,6 +53,7 @@ class io(object):
         }
 
         atexit.register(cleanup)
+        signal.signal(signal.SIGTERM, _sigtermCleanup)
         
         with Gbl.ioLock:
             """ SET GPIO numbering mode to use GPIO designation, NOT pin numbers """
