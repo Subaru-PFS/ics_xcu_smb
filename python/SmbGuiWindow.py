@@ -1,11 +1,10 @@
 import natsort
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSlot
 import Gbl
 import SmbMainGui
 import re
 from quieres import config_table
-from QLed import QLed
 import quieres
 
 class MainWindow(QtWidgets.QMainWindow, SmbMainGui.Ui_MainWindow):
