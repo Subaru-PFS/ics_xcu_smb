@@ -4,7 +4,6 @@ import queue
 import sys
 import time
 
-import RPi.GPIO as GPIO
 import spidev
 
 import ADS1015
@@ -170,15 +169,15 @@ def main(argv=None):
                         help='path to configuration sqlite file.')
     parser.add_argument('--logLevel', type=int, default=logging.INFO,
                         help='logging threshold. 10=debug, 20=info, 30=warn')
-    parser.add_argument('--noGUI', action='store_true',
+    parser.add_argument('--doGUI', action='store_true',
                         help='do not start X GUI')
-    parser.add_argument('--sensorPeriod', type=float, default=1.0,
+    parser.add_argument('--sensorPeriod', type=float, default=0.1,
                         help='how often to sample the sensors')
 
     opts = parser.parse_args(argv)
     runSmb(dbPath=opts.dbPath, logLevel=opts.logLevel,
            sensorPeriod=opts.sensorPeriod,
-           doGUI=(not opts.noGUI))
+           doGUI=(opts.doGUI))
     
 if __name__ == "__main__":
     main()
