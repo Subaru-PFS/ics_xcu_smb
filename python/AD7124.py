@@ -222,10 +222,11 @@ class AD7124(object):
             data_24.pop(0)
             conversion = int.from_bytes(data_24, byteorder='big', signed=False)
 
+            doTrimOutliers = False
             # Temp Sensor Channel
             if channel == 0:
                 ch_flgs[0] = True
-                if conversion == 2**24-1:
+                if doTrimOutliers and conversion == 2**24-1:
                     conversion = np.nan
                 rt = (conversion - (2 ** 23)) * self._ref_resistor / (self._adc_gain * (2 ** 23))
                 self.logger.debug('cnv=%g res=%g adc_gain=%g rt=%g type=%d',
@@ -237,8 +238,8 @@ class AD7124(object):
                 if self._sns_type_id == 1 or self._sns_type_id == 2:
                     rtd_temperature = self.temperature_from_rtd(rt)
 
-                    if (rtd_temperature <= 1 or rtd_temperature > 380
-                        or np.isfinite(self.lastReading) and abs(rtd_temperature - self.lastReading) > 30):
+                    if (# rtd_temperature <= 1 or rtd_temperature > 380 or
+                        np.isfinite(self.lastReading) and abs(rtd_temperature - self.lastReading) > 30):
                         
                         self.logger.warning('ADC %d: replacing out-of-range reading %s with %s',
                                             self._sens_num, rtd_temperature, self.lastReading)
