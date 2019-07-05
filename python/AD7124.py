@@ -240,8 +240,8 @@ class AD7124(object):
                     if (rtd_temperature <= 1 or rtd_temperature > 380
                         or np.isfinite(self.lastReading) and abs(rtd_temperature - self.lastReading) > 30):
                         
-                        self.logger.warning('ADC %d: replacing out-of-range reading %s with %s',
-                                            self._sens_num, rtd_temperature, self.lastReading)
+                        self.logger.warning('ADC %d: replacing out-of-range reading %s (%s) with %s',
+                                            self._sens_num, rtd_temperature, conversion, self.lastReading)
                         rtd_temperature = self.lastReading
                         self.lastReading = np.nan
                     else:
