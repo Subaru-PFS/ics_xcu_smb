@@ -196,42 +196,48 @@ class DAC(object):
 
     # <editor-fold desc="******************* Private Methods *******************">
 
-    def _write_and_read_reg(self, regname):
-        """ Write a register from the db, read it back to check. """
-        
-        with Gbl.ioLock:
-            set_dict = quieres.db_dac_fetch_names_n_values(self.db, regname, self.dac_num)
-            self.dac_write_register(regname, **set_dict)
-            read_dict = self.dac_read_register(regname)
-        if set_dict != read_dict:
-            self.logger.warn("htr %d %s mismatch: set : %s", self.idx, regname, set_dict)
-            self.logger.warn("htr %d %s mismatch: read: %s", self.idx, regname, read_dict)
-            
-        return set_dict, read_dict
-    
     def __dac_initialize(self):
         """ Reset the DAC """
         self.RegAddrs = quieres.db_table_data_to_dictionary(self.db,'tblDacRegisters')
 
         with Gbl.ioLock:
-            for regname in ('reset_config',
-                            'Select_Buck_Boost_converter', 'configuration_Buck_Boost_converter',
-                            'select_dac', 'configuration_dac',):
+            # write reset config reg (use external reference).
+            reset_config_dict = quieres.db_dac_fetch_names_n_values(self.db,'reset_config', self.dac_num)
+            self.dac_write_register('reset_config', **reset_config_dict)
+            resetconfig = self.dac_read_register('reset_config')
+            # if reset_config_dict != resetconfig:
+            self.logger.info("htr %d reset_config: %s", self.idx, resetconfig)
 
-                set_dict, read_dict = self._write_and_read_reg(regname)
-                self.logger.info("initial htr %d %s = %s", self.idx, regname, read_dict)
+            # Write Select Buck Boost Register (Select A,B,C & D).
+            buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'Select_Buck_Boost_converter', self.dac_num)
+            self.dac_write_register('Select_Buck_Boost_converter', **buck_boost_dict)
+            buckboostsel = self.dac_read_register('Select_Buck_Boost_converter')
+            self.logger.info("htr %d select_buck_boost: %s", self.idx, buckboostsel)
+
+            # Write Config Buck-Boost reg.
+            cfg_buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_Buck_Boost_converter', self.dac_num)
+            self.dac_write_register('configuration_Buck_Boost_converter', **cfg_buck_boost_dict)
+            buckboostconfig = self.dac_read_register('configuration_Buck_Boost_converter')
+            self.logger.info("htr %d config_buck_boost: %s", self.idx, buckboostconfig)
+
+            # Write Select DAC Register.
+            sel_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'select_dac', self.dac_num)
+            self.dac_write_register('select_dac', **sel_dac_dict)
+            dacsel = self.dac_read_register('select_dac')
+            self.logger.info("htr %d select_dac: %s", self.idx, dacsel)
+
+            # Write Config Dac Register.
+            cfg_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_dac', self.dac_num)
+            self.dac_write_register('configuration_dac', **cfg_dac_dict)
+            daccnfg = self.dac_read_register('configuration_dac')
+            self.logger.info("htr %d config_dac: %s", self.idx, daccnfg)
 
             # Write Program DAC Data.
-            for ch in 'a','b','c','d':
-                self.select_dac(ch)
-                self.dac_write_dac_data_reg(0x0000)
-                # Read Config Dac Register.
-                dacdata = self.dac_read_dac_data_reg()
-                self.logger.info("initial htr %d channel %s dac value = 0x%04x",
-                                 self.idx, ch,  dacdata)
-            self.select_dac('none')
+            self.dac_write_dac_data_reg(0x0000)
+            # Read Config Dac Register.
+            dacdata = self.dac_read_dac_data_reg()
+            self.logger.info("htr %d dac value = 0x04%x", self.idx, dacdata)
 
-            self.dac_check_status()
             
 
     def __search_reg_address_from_name(self, name):
