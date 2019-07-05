@@ -5,7 +5,6 @@ import Gbl
 import SmbMainGui
 import re
 from quieres import config_table
-from QLed import QLed
 import quieres
 
 class MainWindow(QtWidgets.QMainWindow, SmbMainGui.Ui_MainWindow):
