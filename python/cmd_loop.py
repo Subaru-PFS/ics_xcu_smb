@@ -5,8 +5,9 @@ import queue
 
 import numpy as np
 
-import natsort
 import quieres
+
+import version
 
 class CmdException(Exception):
     @property
@@ -153,8 +154,7 @@ class CmdLoop(threading.Thread):
 
         # Read Software Rev
         elif cmd == 'N':
-            value = quieres.db_software_rev(self.db)
-            output = "software_rev={0:3.3f}".format(value)
+            output = version.getRevision()
 
         # Read Temp Unit Setting (0=K 1=C 2=F).
         elif cmd == 'U':

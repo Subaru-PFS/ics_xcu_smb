@@ -36,7 +36,8 @@ CmdType| Cmd | P1      | P1 range | Returns   | Range     | Description
 ?      |  V  | DAC#    | 1 to 2   | %         | 0 to .1   | Read Heater Current (A)
 ?      |  W  | LOOP#   | 1 to 2   | Value     | -460->500 | Read LOOP SetPoint
 ?      |  X  | A/D #   | 1 to 12  | Current   | 0 to 7    | Read Excit uA(0=NONE, 1=50,2=100,3=250,4=500,5=750 6,7=1000)
-?      |  r  | n/a     | n/a	 | n/a       | n/a       | Read RTD Resistance at temperature
+?      |  d  | n/a     | n/a	  | n/a       | n/a       | Read RTD raw ADC values
+?      |  r  | n/a     | n/a	  | n/a       | n/a       | Read RTD Resistance at temperature
 ?      |  v  | n/a     | n/a      | n/a       | n/a       | Read RTD Voltage at temperature
 ?      |  t  | n/a     | n/a      | n/a       | n/a       | Read temperatures from all channels
 """
