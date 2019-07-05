@@ -121,35 +121,25 @@ class CmdLoop(threading.Thread):
             htr_dict = quieres.db_fetch_heater_params(self.db, p1)
             output = str(htr_dict['mode'])
 
-        # Read temperatures from all channels
+        # Return temperatures for all channels
         elif cmd == 't':
             readings = [("%0.4f" % self.tlm_dict['rtd%d' % i]) for i in range(1,13)]
             output = ','.join(readings)
-            self.logger.debug('%s readings: %s, output: %s', cmd, readings, output)
 
-        # Return raw data values from all channels
+        # Return raw data values for all channels
         elif cmd == 'd':
             readings = [("%d" % self.tlm_dict['adc_counts%d' % i]) for i in range(1,13)]
             output = ','.join(readings)
-            self.logger.debug('%s readings: %s, output: %s', cmd, readings, output)
 
-        # Read RTD Resistance at temperature
+        # Return RTD Resistances for all channels
         elif cmd == 'r':
-            readings = []
-            for item in natsort.natsorted(self.tlm_dict):
-                if 'adc_sns_ohms' in item:
-                    readings.append("%.2f" % self.tlm_dict[item])
+            readings = [("%0.4f" % self.tlm_dict['adc_sns_ohms%d' % i]) for i in range(1,13)]
             output = ','.join(readings)
-            self.logger.debug('%s readings: %s, output: %s', cmd, readings, output)
 
-        # Read voltage at a temp sensor.
+        # Return RTD voltages for all channels
         elif cmd == 'v':
-            readings = []
-            for item in natsort.natsorted(self.tlm_dict):
-                if 'adc_sns_volts' in item:
-                    readings.append("%.6f" % self.tlm_dict[item])
+            readings = [("%0.4f" % self.tlm_dict['adc_sns_volts%d' % i]) for i in range(1,13)]
             output = ','.join(readings)
-            self.logger.debug('%s readings: %s, output: %s', cmd, readings, output)
 
         # Read Board ID
         elif cmd == 'A':
