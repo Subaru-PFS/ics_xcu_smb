@@ -1,11 +1,16 @@
 import atexit
 import logging
+import signal
 import threading
 
 import RPi.GPIO as GPIO
 
 import Gbl
 
+def sigCleanup(signum, frame):
+    logging.warn("caught signal %s", signum)
+    raise SystemExit()
+    
 def cleanup():
     try:
         GPIO.cleanup()
@@ -49,6 +54,7 @@ class io(object):
         }
 
         atexit.register(cleanup)
+        signal.signal(signal.SIGTERM, sigCleanup)
         
         with Gbl.ioLock:
             """ SET GPIO numbering mode to use GPIO designation, NOT pin numbers """
