@@ -72,6 +72,9 @@ class CmdLoop(threading.Thread):
             period = float(period)
             
             self.qxmit.put('OK')
+        else:
+            self.qxmit.put('UNKNOWN COMMAND: %s' % (cmdstr))
+            
             
     def process_queued_cmd(self, cmd_dict):
         logging.debug('processing cmd: %s' % (cmd_dict))

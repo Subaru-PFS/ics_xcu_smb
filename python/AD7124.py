@@ -225,8 +225,6 @@ class AD7124(object):
             # Temp Sensor Channel
             if channel == 0:
                 ch_flgs[0] = True
-                if conversion == 2**24-1:
-                    conversion = np.nan
                 rt = (conversion - (2 ** 23)) * self._ref_resistor / (self._adc_gain * (2 ** 23))
                 self.logger.debug('cnv=%g res=%g adc_gain=%g rt=%g type=%d',
                                   conversion - (2 ** 23),
@@ -237,15 +235,20 @@ class AD7124(object):
                 if self._sns_type_id == 1 or self._sns_type_id == 2:
                     rtd_temperature = self.temperature_from_rtd(rt)
 
-                    if (rtd_temperature <= 1 or rtd_temperature > 380
-                        or np.isfinite(self.lastReading) and abs(rtd_temperature - self.lastReading) > 30):
-                        
-                        self.logger.warning('ADC %d: replacing out-of-range reading %s (%s) with %s',
-                                            self._sens_num, rtd_temperature, conversion, self.lastReading)
-                        rtd_temperature = self.lastReading
-                        self.lastReading = np.nan
-                    else:
+                    if conversion == 0:
+                        rtd_temperature = 0.0
                         self.lastReading = rtd_temperature
+                    elif conversion == 2**24-1:
+                        rtd_temperature = 400.0
+                        self.lastReading = rtd_temperature
+                    else:
+                        if np.isfinite(self.lastReading) and abs(rtd_temperature - self.lastReading) > 30:
+                            self.logger.warning('ADC %d: replacing glitch reading %s (%s) with %s',
+                                                self._sens_num, rtd_temperature, conversion, self.lastReading)
+                            rtd_temperature = self.lastReading
+                            self.lastReading = np.nan
+                        else:
+                            self.lastReading = rtd_temperature
 
                     dkey = 'rtd' + str(self._sens_num)
                     self.tlm_dict[dkey] = rtd_temperature
