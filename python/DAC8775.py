@@ -50,8 +50,6 @@ class DAC(object):
                           write_bytes, write_bytes,
                           kwargs)
 
-        self.dac_read_register(regname)
-        
     def dac_read_register(self, reg_name):
         data_24 = [0, 0, 0]
         regid = self.__search_reg_address_from_name(reg_name)
@@ -71,12 +69,51 @@ class DAC(object):
             keyname = item['NAME']
             dataval = (value >> item['SHIFT']) & item['MASK']
             dict_register[keyname] = dataval
-            self.logger.debug('heater %d read reg %s/%d, %s= 0x%04x/%d, 0x%04x/%d',
-                              self.idx, reg_name, (regid & ~self._READ_FLAG),
-                              keyname, value, value,
-                              dataval, dataval)
+
+        self.logger.debug('heater %d read reg %s/%d = 0x%04x/%d (%s)',
+                          self.idx, reg_name, (regid & ~self._READ_FLAG),
+                          value, value,
+                          dict_register)
         return dict_register
 
+    def select_dac(self, dac='none'):
+        dac = dac.lower()
+
+        with Gbl.ioLock:
+            dict_sel_dac_reg = self.dac_read_register('select_dac')
+            if dac == 'a':
+                dict_sel_dac_reg['cha'] = True
+                dict_sel_dac_reg['chb'] = False
+                dict_sel_dac_reg['chc'] = False
+                dict_sel_dac_reg['chd'] = False
+            elif dac == 'b':
+                dict_sel_dac_reg['cha'] = False
+                dict_sel_dac_reg['chb'] = True
+                dict_sel_dac_reg['chc'] = False
+                dict_sel_dac_reg['chd'] = False
+            elif dac == 'c':
+                dict_sel_dac_reg['cha'] = False
+                dict_sel_dac_reg['chb'] = False
+                dict_sel_dac_reg['chc'] = True
+                dict_sel_dac_reg['chd'] = False
+            elif dac == 'd':
+                dict_sel_dac_reg['cha'] = False
+                dict_sel_dac_reg['chb'] = False
+                dict_sel_dac_reg['chc'] = False
+                dict_sel_dac_reg['chd'] = True
+            elif dac == 'all':
+                dict_sel_dac_reg['cha'] = True
+                dict_sel_dac_reg['chb'] = True
+                dict_sel_dac_reg['chc'] = True
+                dict_sel_dac_reg['chd'] = True
+            else:
+                dict_sel_dac_reg['cha'] = False
+                dict_sel_dac_reg['chb'] = False
+                dict_sel_dac_reg['chc'] = False
+                dict_sel_dac_reg['chd'] = False
+            self.dac_write_register('select_dac', **dict_sel_dac_reg)
+        self.logger.debug('selected DAC %s' % (dac))
+        
     def dac_write_dac_data_reg(self, value):
         """ Write a DAC data value.
 

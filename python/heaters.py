@@ -186,58 +186,16 @@ class PidHeater(object):
 
     def set_all_currents_to_zero(self):
         with Gbl.ioLock:
-            dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
-            dict_sel_dac_reg['cha'] = True
-            dict_sel_dac_reg['chb'] = True
-            dict_sel_dac_reg['chc'] = True
-            dict_sel_dac_reg['chd'] = True
-            self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
+            self.dac.select_dac('all')
             self.dac.dac_write_dac_data_reg(0x0000)
-            dict_sel_dac_reg['cha'] = False
-            dict_sel_dac_reg['chb'] = False
-            dict_sel_dac_reg['chc'] = False
-            dict_sel_dac_reg['chd'] = False
-            self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
+            self.dac.select_dac('none')
 
-    def select_one_dac(self, dac):
-        dac = dac.lower()
-
-        with Gbl.ioLock:
-            dict_sel_dac_reg = self.dac.dac_read_register('select_dac')
-            if dac == 'a':
-                dict_sel_dac_reg['cha'] = True
-                dict_sel_dac_reg['chb'] = False
-                dict_sel_dac_reg['chc'] = False
-                dict_sel_dac_reg['chd'] = False
-            elif dac == 'b':
-                dict_sel_dac_reg['cha'] = False
-                dict_sel_dac_reg['chb'] = True
-                dict_sel_dac_reg['chc'] = False
-                dict_sel_dac_reg['chd'] = False
-            elif dac == 'c':
-                dict_sel_dac_reg['cha'] = False
-                dict_sel_dac_reg['chb'] = False
-                dict_sel_dac_reg['chc'] = True
-                dict_sel_dac_reg['chd'] = False
-            elif dac == 'd':
-                dict_sel_dac_reg['cha'] = False
-                dict_sel_dac_reg['chb'] = False
-                dict_sel_dac_reg['chc'] = False
-                dict_sel_dac_reg['chd'] = True
-            else:
-                dict_sel_dac_reg['cha'] = False
-                dict_sel_dac_reg['chb'] = False
-                dict_sel_dac_reg['chc'] = False
-                dict_sel_dac_reg['chd'] = False
-            self.dac.dac_write_register('select_dac', **dict_sel_dac_reg)
-        self.logger.debug('selected DAC %s' % (dac))
-        
     def update_one_dac(self, dac, value):
         with Gbl.ioLock:
-            self.select_one_dac(dac)
+            self.dac.select_dac(dac)
             self.dac.dac_write_dac_data_reg(value)
 
-            self.select_one_dac(dac)
+            self.dac.select_dac(dac)
             check = self.dac.dac_read_dac_data_reg()
 
         if value != check:
