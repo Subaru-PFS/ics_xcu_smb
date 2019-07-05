@@ -124,6 +124,12 @@ class CmdLoop(threading.Thread):
             output = ','.join(readings)
             self.logger.debug('%s readings: %s, output: %s', cmd, readings, output)
 
+        # Return raw data values from all channels
+        elif cmd == 'd':
+            readings = [("%d" % self.tlm_dict['adc_counts%d' % i]) for i in range(1,13)]
+            output = ','.join(readings)
+            self.logger.debug('%s readings: %s, output: %s', cmd, readings, output)
+
         # Read RTD Resistance at temperature
         elif cmd == 'r':
             readings = []
