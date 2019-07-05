@@ -51,8 +51,7 @@ class SmbCmd(object):
         self.cmd = ''
 
     def parse_smb_cmd(self, cmdstr):
-        cmdstr = cmdstr.rstrip()  # remove whitespace at end of cmdstring
-        cmdstr = cmdstr.lstrip()  # remove whitespace at beginning of cmdstring
+        cmdstr = cmdstr.strip()  # remove whitespace at end of cmdstring
 
         self.cmd_type = cmdstr[0:1]
         # search for the cmd char
@@ -71,6 +70,10 @@ class SmbCmd(object):
         cmd_dict['CMD_TYPE'] = self.cmd_type
         cmd_dict['P1_DEF'] = params[0]
         cmd_dict['P2_DEF'] = params[1]
+        if 'P1_MIN' not in cmd_dict:
+            cmd_dict['P1_MIN'] = None
+        if 'P1_MAX' not in cmd_dict:
+            cmd_dict['P1_MAX'] = None
         if self.cmd_type == '?' or self.cmd_type == '~':
             cmd_dict['ERROR'] = 0
         else:

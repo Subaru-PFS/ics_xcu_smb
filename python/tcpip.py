@@ -61,6 +61,7 @@ class TcpServer(threading.Thread):
                     self.logger.warn('no reply to command!')
                     continue
                 if data:
+                    self.logger.info('reply: %s', data)
                     data = data + '\n'
                     conn.sendall(data.encode('latin-1'))
 
@@ -68,7 +69,7 @@ class TcpServer(threading.Thread):
         if strdata[0] in '~?':
             smb_cmd = SmbCmd(self.db)
             cmd_dict = smb_cmd.parse_smb_cmd(strdata)
-            self.logger.debug('cmd %s, %s' % (strdata, smb_cmd))
+            self.logger.info('new cmd %s, %s' % (strdata, smb_cmd))
             if not self.qcmd.full():
                 self.qcmd.put(cmd_dict)
         else:

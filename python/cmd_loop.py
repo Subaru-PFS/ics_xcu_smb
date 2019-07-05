@@ -76,14 +76,14 @@ class CmdLoop(threading.Thread):
     def process_queued_cmd(self, cmd_dict):
         logging.debug('processing cmd: %s' % (cmd_dict))
         
-        if cmd_dict['CMD_TYPE'] == '?' and cmd_dict["READ"] == 1:
+        if cmd_dict['CMD_TYPE'] == '?':
             try:
                 self.process_read_cmd(cmd_dict)
             except Exception as e:
                 self.logger.warn('command failure: %s', e)
                 self.qxmit.put('FATAL ERROR')
                 
-        elif cmd_dict['CMD_TYPE'] == '~' and cmd_dict["WRITE"] == 1:
+        elif cmd_dict['CMD_TYPE'] == '~':
             try:
                 self.process_write_cmd(cmd_dict)
             except Exception as e:
@@ -101,7 +101,7 @@ class CmdLoop(threading.Thread):
         p1min = cmd_dict["P1_MIN"]
         p1max = cmd_dict["P1_MAX"]
 
-        if p1 < p1min or p1 > p1max:
+        if (p1min is not None and p1 < p1min) or (p1max is not None and p1 > p1max):
             self.logger.warn('cmd %s p1 arg is out of range', cmd)
             output = "OUT OF RANGE"
             self.qxmit.put(output)
@@ -228,7 +228,7 @@ class CmdLoop(threading.Thread):
             output = str("cmd not yet implemented")
 
         else:
-            raise ValueError('unknown command %s' % cmd)
+            output = 'UNKNOWN COMMAND: %s' % (cmd)
 
         if output == '':
             output = 'NO VALUE'
