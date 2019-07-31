@@ -218,9 +218,14 @@ class AD7124(object):
                 channel = self.__wait_end_of_conversion(1)
                 data_24 = self.__adc_read_register('Data', 3)  # read three conversion bytes
 
-            self.logger.debug('conversion %d %d %s', self.idx, channel, data_24)
-            data_24.pop(0)
-            conversion = int.from_bytes(data_24, byteorder='big', signed=False)
+            if channel == -1:
+                self.logger.warn('ADC %02d bad channel raw %s', self.idx, data_24)
+                conversion = np.nan
+                channel = 0
+            else:
+                self.logger.debug('conversion %d %d %s', self.idx, channel, data_24)
+                data_24.pop(0)
+                conversion = int.from_bytes(data_24, byteorder='big', signed=False)
 
             # Temp Sensor Channel
             if channel == 0:
@@ -243,7 +248,7 @@ class AD7124(object):
                         self.lastReading = rtd_temperature
                     else:
                         if np.isfinite(self.lastReading) and abs(rtd_temperature - self.lastReading) > 30:
-                            self.logger.warning('ADC %d: replacing glitch reading %s (%s) with %s',
+                            self.logger.warning('ADC %02d: replacing glitch reading %s (%s) with %s',
                                                 self._sens_num, rtd_temperature, conversion, self.lastReading)
                             rtd_temperature = self.lastReading
                             self.lastReading = np.nan
@@ -321,13 +326,13 @@ class AD7124(object):
             elif channel == 6:
                 ch_flgs[6] = True
                 if conversion == 0:
-                    self.logger.warn('ADC %d: VR8 is 0', self.idx)
+                    self.logger.warn('ADC %02d: VR8 is 0', self.idx)
                 vr8 = (conversion * int_ref) / 2**24
                 dkey = 'itherm' + str(self._sens_num)
                 ir8 = vr8/5620
                 self.tlm_dict[dkey] = ir8
             else:
-                self.logger.warn("ADC %d bad channel: %s", self.idx, channel)
+                self.logger.warn("ADC %02d bad channel: %s", self.idx, channel)
                 done = True
 
             if all(ch_flgs):
@@ -412,7 +417,7 @@ class AD7124(object):
 
     def log_errors(self):
         errors = self.adc_read_register_to_dict('Error')
-        self.logger.error("ADC %d errors=%s" % (self.idx, errors))
+        self.logger.error("ADC %02d errors=%s" % (self.idx, errors))
         
     def __wait_end_of_conversion(self, timeout_s):
         starttime = time.time()
@@ -424,7 +429,7 @@ class AD7124(object):
             nready = data_8['n_rdy']
             currtime = time.time()
             if currtime - starttime > timeout_s:
-                self.logger.warn("ADC %d timeout %f, data=%s" % (self.idx, currtime - starttime, data_8))
+                self.logger.warn("ADC %02d timeout %f, data=%s" % (self.idx, currtime - starttime, data_8))
                 self.log_errors()
                 return -1
         return data_8['ch_active']  # return current channel#
@@ -473,7 +478,7 @@ class AD7124(object):
                 self.activeChannels.append(reg_dict["enable"] == 1)
                 if reg_dict["enable"] == 1:
                     if result_dict != reg_dict:
-                        raise ValueError("ADC %d channel %d configuration mismatch; expected %s got %s" % (self.idx,
+                        raise ValueError("ADC %02d channel %d configuration mismatch; expected %s got %s" % (self.idx,
                                                                                                            i, reg_dict,
                                                                                                            result_dict))
                                          
@@ -489,7 +494,7 @@ class AD7124(object):
                     self.__adc_write_register(reg_name, **reg_dict)
                     result_dict = self.adc_read_register_to_dict(reg_name)
                 if result_dict != reg_dict:
-                    raise ValueError("ADC %d configuration %d mismatch; expected %s got %s" % (self.idx,
+                    raise ValueError("ADC %02d configuration %d mismatch; expected %s got %s" % (self.idx,
                                                                                                i, reg_dict, result_dict))
 
         except ValueError as err:
