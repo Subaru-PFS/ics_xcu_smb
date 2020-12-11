@@ -73,6 +73,12 @@ class CmdLoop(threading.Thread):
         self.__exitEvent.set()
         
     def run(self):
+        """Main parsing loop.
+
+        Handles old-style (~X and ?X) commands and new (command opt=arg opt2=arg2)
+
+        For new-style commands, always replies with OK or an error string.
+        """
         while True:
             try:
                 cmd = self.qcmd.get(timeout=1)
@@ -82,22 +88,21 @@ class CmdLoop(threading.Thread):
                     return
                 else:
                     continue
-                
+            
             if isinstance(cmd, str):
                 try:
                     self.logger.info('processing raw cmd: %s', cmd)
                     self.process_string_cmd(cmd)
+                    self.qxmit.put('OK')
                 except CmdException as e:
-                    self.logger.warn('command failure: %s', e)
+                    self.logger.warn('command failure: %s', e, stack_info=True)
                     self.qxmit.put('FATAL ERROR: %s' % e.msg)
                 except Exception as e:
-                    self.logger.warn('command failure: %s', e)
-                    self.qxmit.put('FATAL ERROR')
+                    self.logger.warn('command failure: %s', e, stack_info=True)
+                    self.qxmit.put('FATAL ERROR: %s' % (e))
             else:
                 self.process_queued_cmd(cmd)
 
-    def process_string_cmd(self, cmdstr):
-        cmd, *args = cmdstr.split(',')
     def parseCommand(self, argParts, argTemplate):
         """Parse keyword=argument command options.
 
@@ -149,6 +154,25 @@ class CmdLoop(threading.Thread):
         self.logger.debug('set argDict = %s', argDict)
 
         return argDict
+
+    commandArgs = dict(heater=dict(id=int,
+                                   on=logical,
+                                   setpoint=nonNegativeFloat,
+                                   trace=integer,
+                                   P=int, I=int,
+                                   sensor=int,
+                                   rho=nonNegativeFloat, tau=nonNegativeFloat, 
+                                   tint=nonNegativeFloat, R=nonNegativeFloat,
+                                   maxCurrent=nonNegativeFloat, 
+                                   maxTempRate=nonNegativeFloat, 
+                                   failsafeFraction=nonNegativeFloat),
+                       impulse=dict(id=int,
+                                    current=float,
+                                    duration=int))
+    
+    def process_string_cmd(self, cmdStr):
+        logging.debug('processing new cmd: %s' % (cmdStr))
+        cmd, *args = cmdStr.split()
         cmd = cmd.lower()
 
         if cmd == 'readhtrreg':
@@ -159,11 +183,23 @@ class CmdLoop(threading.Thread):
         elif cmd == 'setperiod':
             period, = args
             period = float(period)
-            
             self.qxmit.put('OK')
+        elif cmd == 'heater':
+            opts = self.parseCommand(args, self.commandArgs[cmd])
+            heaterNum = opts.get('id', None)
+            if heaterNum not in (1,2):
+                raise ValueError('heater id must be set and be 1 or 2, not %s' % (heaterNum))
+            del opts['id']
+            self.heaters[heaterNum-1].reconfigureCommand(**opts)
+        elif cmd == 'impulse':
+            opts = self.parseCommand(args, self.commandArgs[cmd])
+            heaterNum = opts.get('id', None)
+            if heaterNum not in (1,2):
+                raise ValueError('heater id must be set and be 1 or 2, not %s' % (heaterNum))
+            del opts['id']
+            self.heaters[heaterNum-1].impulseCommand(**opts)
         else:
-            self.qxmit.put('UNKNOWN COMMAND: %s' % (cmdstr))
-            
+            self.qxmit.put('UNKNOWN COMMAND: %s' % (cmdStr))
             
     def process_queued_cmd(self, cmd_dict):
         logging.debug('processing cmd: %s' % (cmd_dict))
@@ -172,14 +208,15 @@ class CmdLoop(threading.Thread):
             try:
                 self.process_read_cmd(cmd_dict)
             except Exception as e:
-                self.logger.warn('command failure: %s', e)
+                self.logger.warn('command failure: %s', e, stack_info=True)
+                
                 self.qxmit.put('FATAL ERROR')
                 
         elif cmd_dict['CMD_TYPE'] == '~':
             try:
                 self.process_write_cmd(cmd_dict)
             except Exception as e:
-                self.logger.warn('command failure: %s', e)
+                self.logger.warn('command failure: %s', e, stack_info=True)
                 self.qxmit.put('FATAL ERROR')
         else:
             cmd_dict['ERROR'] = -1
