@@ -3,10 +3,7 @@ import threading
 import os
 import queue
 
-import numpy as np
-
 import quieres
-
 import version
 
 class CmdException(Exception):
@@ -14,6 +11,46 @@ class CmdException(Exception):
     def msg(self):
         return self.args[0]
 
+def logical(s):
+    """Parse most plausible forms of boolean values
+
+    Parameters
+    ----------
+    s : str
+        true, false, t, f, 0, 1, yes, no, y, n
+
+    Returns
+    -------
+    bool
+    """
+    s = s.lower()
+    s = s.strip()
+
+    if s in {'1', 't', 'true', 'y', 'yes'}:
+        return True
+    if s in {'0', 'f', 'false', 'n', 'no'}:
+        return False
+    raise CmdException('could not parse %s as a boolean value' % (s))
+
+def integer(s):
+    """Parse an integer string, allowing '0x', '0b', '0o' prefixes."""
+    try:
+        return int(s, base=0)
+    except:
+        raise CmdException('could not parse %s as an integer value' % (s))
+
+def nonNegativeFloat(s):
+    """Parse a positive floating point number, or raise an Exception."""
+
+    try:
+        f = float(s)
+    except:
+        raise CmdException('could not parse %s as a float value' % (s))
+
+    if f < 0:
+        raise CmdException('could not parse %s as a non-negative float value' % (s))
+
+    return f        
 class CmdLoop(threading.Thread):
     def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015,
                  qcommand, qtransmit):
@@ -61,6 +98,57 @@ class CmdLoop(threading.Thread):
 
     def process_string_cmd(self, cmdstr):
         cmd, *args = cmdstr.split(',')
+    def parseCommand(self, argParts, argTemplate):
+        """Parse keyword=argument command options.
+
+        Parameters
+        ----------
+        argParts : list
+            the command arguments
+        argTemplate : dict
+            dictionary of keys to match against, and their required types.
+
+        Returns
+        -------
+        dict : parsed options.
+        """
+
+        self.logger.info('parseCommand %s', argParts)
+        argDict = dict()
+        for a in argParts:
+            try:
+                k, v = a.split('=')
+            except ValueError:
+                k = a
+                v = None
+
+            if k not in argTemplate:
+                raise CmdException('option %s not recognized' % (k))
+            matchType = argTemplate[k]
+
+            if v is None and matchType is not None:
+                raise CmdException('option %s is expected to have a %s argument' % (k, 
+                                                                                    matchType.__name__))
+            if v is not None and matchType is None:
+                raise CmdException('option %s is expected to have no argument' % (k))
+
+            if v is None:
+                self.logger.info('setting arg %s = True', k)
+                argDict[k] = True
+                continue
+            
+            # Convert
+            try:
+                opt = matchType(v)
+            except Exception as e:
+                raise CmdException('argument %s to option %s could not be parsed as a %s' % 
+                                   (v, k, matchType.__name__))
+            self.logger.debug('setting arg %s = %s', k, opt)
+            argDict[k] = opt
+
+        self.logger.debug('set argDict = %s', argDict)
+
+        return argDict
         cmd = cmd.lower()
 
         if cmd == 'readhtrreg':
