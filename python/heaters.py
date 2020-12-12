@@ -23,8 +23,9 @@ class PidHeater(object):
         self.logger.setLevel(logging.INFO)
         self.db = smbdb
 
-        with Gbl.ioLock:
-            self.dac = DAC(idx, self.db, spi, io)
+        self.spi = spi
+        self.io = io
+        
         self._heater_num = idx + 1
 
         self._maxCurrent = 0.024
@@ -55,9 +56,26 @@ class PidHeater(object):
         # We want to support tweaking the loop while it is running.
         # Try to do that safely.
         self.configLock = threading.RLock()
-                
+
+        self.connectDAC()                
         self.config_heater_params()
 
+    def connectDAC(self):
+        idx = self._heater_num - 1
+        with Gbl.ioLock:
+            restart = hasattr(self, 'dac')
+            self.logger.info('htr %d: connecting DAC (restart %s, mode %d, current %0.4f)', 
+                             self._heater_num, restart, 
+                             self.heater_mode, self.heater_current)
+            if restart:
+                del self.dac
+            self.dac = DAC(idx, self.db, self.spi, self.io)
+
+            if restart:
+                self.set_htr_mode(self.heater_mode)
+                if self.heater_mode == self.LOOP_MODE_POWER:
+                    self.htr_set_heater_current(self.heater_current)
+        
     def __str__(self):
         configList = ["%s=%s" % (k,v) for k,v in self.loopConfig.items()]
         return "heater num=%d mode=%d sensor=%d %s" % (self.heater_num, self.heater_mode, 

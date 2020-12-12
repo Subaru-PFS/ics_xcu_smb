@@ -166,6 +166,7 @@ class CmdLoop(threading.Thread):
                                    maxCurrent=nonNegativeFloat, 
                                    maxTempRate=nonNegativeFloat, 
                                    failsafeFraction=nonNegativeFloat),
+                       connect=dict(id=int),
                        impulse=dict(id=int,
                                     current=float,
                                     duration=int))
@@ -191,6 +192,13 @@ class CmdLoop(threading.Thread):
                 raise ValueError('heater id must be set and be 1 or 2, not %s' % (heaterNum))
             del opts['id']
             self.heaters[heaterNum-1].reconfigureCommand(**opts)
+        elif cmd == 'connect':
+            opts = self.parseCommand(args, self.commandArgs[cmd])
+            heaterNum = opts.get('id', None)
+            if heaterNum not in (1,2):
+                raise ValueError('heater id must be set and be 1 or 2, not %s' % (heaterNum))
+            del opts['id']
+            self.heaters[heaterNum-1].connectDAC()
         elif cmd == 'impulse':
             opts = self.parseCommand(args, self.commandArgs[cmd])
             heaterNum = opts.get('id', None)
