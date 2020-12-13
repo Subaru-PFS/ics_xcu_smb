@@ -330,7 +330,18 @@ class PidHeater(object):
             # Convert power to current
             I_i = np.sqrt(P_i / cfg['R'])
 
-            # Will want to clip this for sanity
+            # Avoid windup on output saturation.
+            if I_i == 0:
+                if lastSum == 0:
+                    sum = 0.0
+                else:
+                    sum = (1 - 1/k0)*lastSum
+            elif I_i > self.currentLimit:
+                I_i = self.currentLimit
+                if lastSum == 0: # Loop just started
+                    sum = delta
+                else:
+                    sum = (1 - 1/k0)*lastSum
             cfg['lastSum'] = sum
 
             # Hold the output current at a fixed value for some number of
@@ -464,12 +475,13 @@ class PidHeater(object):
         
         cfg = self.loopConfig
         
-        if not on:
+        if on is False:
             self.set_htr_mode(self.LOOP_MODE_IDLE)
+            self.last_pv = 0.0
 
         # We might turn the loop off due to some sanity checks. Make
         # sure to remember to enable the loop if so.
-        if on or self.heater_mode == self.LOOP_MODE_PID:
+        if self.heater_mode == self.LOOP_MODE_PID:
             on = True
             
         if sensor is not None:
@@ -479,6 +491,7 @@ class PidHeater(object):
             # shutdown any loop with a different sensor
             if sensor != self.heater_ctrl_sensor:
                 self.set_htr_mode(self.LOOP_MODE_IDLE)
+                self.last_pv = 0.0
             self.heater_ctrl_sensor = sensor
 
         if trace is not None:
@@ -489,21 +502,16 @@ class PidHeater(object):
                
             if setpoint is not None:
                 self._heater_set_pt = setpoint
-                cfg['lastSum'] = 0.0
             if P is not None:
                 cfg['P'] = P
             if I is not None:
                 cfg['I'] = I
-                cfg['lastSum'] = 0.0
             if rho is not None:
                 cfg['rho'] = rho
-                cfg['lastSum'] = 0.0
             if tau is not None:
                 cfg['tau'] = tau
-                cfg['lastSum'] = 0.0
             if tint is not None:
                 cfg['tint'] = tint
-                cfg['lastSum'] = 0.0
             if R is not None:
                 cfg['R'] = R
             if maxCurrent is not None:
