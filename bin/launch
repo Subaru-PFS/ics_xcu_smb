@@ -1,2 +1,3 @@
+now=`date +"%Y-%m-%dT%H:%M:%S"`
 cd /db/ics_xcu_SMB
-nohup python3 python/__main__.py "$@" >& /db/smb.log &
+nohup python3 python/main.py "$@" >& /db/smb-$now.log &
