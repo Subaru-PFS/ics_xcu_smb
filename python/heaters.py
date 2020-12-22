@@ -78,7 +78,7 @@ class PidHeater(object):
         
     def __str__(self):
         configList = ["%s=%s" % (k,v) for k,v in self.loopConfig.items()]
-        return "heater num=%d mode=%d sensor=%d %s" % (self.heater_num, self.heater_mode, 
+        return "heater num=%d mode=%d sensor=%d %s" % (self._heater_num, self.heater_mode, 
                                                        self.heater_ctrl_sensor, " ".join(configList))
         
     @property
@@ -395,6 +395,7 @@ class PidHeater(object):
                                  self.loopConfig['failsafeFraction'] * 100)
             self.set_htr_mode(self.LOOP_MODE_POWER)
             self.htr_set_heater_fraction(self.loopConfig['failsafeFraction'])
+            self.lastSum = 0.0
             return
         
         # We might want to first run a Kalman filter on the raw values, if only

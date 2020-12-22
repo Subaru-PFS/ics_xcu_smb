@@ -51,6 +51,7 @@ class AD7124(object):
 
         self.glitchLimit = 20 # dK/sample
         self.lastReading = np.nan
+        self.nBadReadings = 0
         
     # <editor-fold desc="******************** ADC Properties ********************">
 
@@ -246,19 +247,21 @@ class AD7124(object):
             # Validate a new reading without knowing about older ones. Simply 
             # allow all readings in 0..400K
             if temp > 0 and temp < 400:
-                if self.numBadReadings > 0:
+                if self.nBadReadings > 0:
                     self.logger.warning('ADC %02d: accepting reading after %d bad ones - %s (%s)',
-                                        self._sens_num, self.numBadReadings, 
+                                        self._sens_num, self.nBadReadings, 
                                         temp, rawValue)
                 self.nBadReadings = 0
                 self.lastReading = temp
             else:
                 self.logger.warning('ADC %02d: ignoring suspect reading after %d bad ones - %s (%s)',
-                                    self._sens_num, self.numBadReadings, 
+                                    self._sens_num, self.nBadReadings, 
                                     temp, rawValue)
                 self.lastReading = np.nan
                 temp = np.nan
                 self.nBadReadings += 1
+
+        return temp
         
     def read_conversion_data(self):
         int_ref = 2.50  # ADC internal reference voltage
