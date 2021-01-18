@@ -93,10 +93,9 @@ class CmdLoop(threading.Thread):
                 try:
                     self.logger.info('processing raw cmd: %s', cmd)
                     self.process_string_cmd(cmd)
-                    self.qxmit.put('OK')
                 except CmdException as e:
                     self.logger.warn('command failure: %s', e, stack_info=True)
-                    self.qxmit.put('FATAL ERROR: %s' % e.msg)
+                    self.qxmit.put('ERROR: %s' % e.msg)
                 except Exception as e:
                     self.logger.warn('command failure: %s', e, stack_info=True)
                     self.qxmit.put('FATAL ERROR: %s' % (e))
@@ -155,60 +154,78 @@ class CmdLoop(threading.Thread):
 
         return argDict
 
-    commandArgs = dict(heater=dict(id=int,
-                                   on=logical,
-                                   setpoint=nonNegativeFloat,
-                                   trace=integer,
-                                   P=int, I=int,
-                                   sensor=int,
-                                   rho=nonNegativeFloat, tau=nonNegativeFloat, 
-                                   tint=nonNegativeFloat, R=nonNegativeFloat,
-                                   maxCurrent=nonNegativeFloat, 
-                                   maxTempRate=nonNegativeFloat, 
-                                   failsafeFraction=nonNegativeFloat),
-                       connect=dict(id=int),
-                       impulse=dict(id=int,
-                                    current=float,
-                                    duration=int))
-    
+    heaterSubCommands = dict(configure=dict(id=int,
+                                            on=logical,
+                                            setpoint=nonNegativeFloat,
+                                            trace=integer,
+                                            P=int, I=int,
+                                            sensor=int,
+                                            rho=nonNegativeFloat, tau=nonNegativeFloat,
+                                            tint=nonNegativeFloat, R=nonNegativeFloat,
+                                            maxCurrent=nonNegativeFloat,
+                                            maxTempRate=nonNegativeFloat,
+                                            failsafeFraction=nonNegativeFloat),
+                             connect=dict(id=int),
+                             readReg=dict(id=int, name=str),
+                             writeReg=dict(id=int, regName=str, name=str, value=integer),
+                             status=dict(id=int, full=logical),
+                             impulse=dict(id=int,
+                                          current=float,
+                                          duration=int))
+
+    loopSubCommands = dict(configure=dict(period=nonNegativeFloat),
+                           status=dict())
+
+    # Sugar...
+    heaterSubCommands['cfg'] = heaterSubCommands['configure']
+    loopSubCommands['cfg'] = loopSubCommands['configure']
+
+    allCommands = dict(heater=heaterSubCommands,
+                       loop=loopSubCommands)
+
     def process_string_cmd(self, cmdStr):
         logging.debug('processing new cmd: %s' % (cmdStr))
         cmd, *args = cmdStr.split()
         cmd = cmd.lower()
 
-        if cmd == 'readhtrreg':
-            htrId, name = args
-            htrId = int(htrId)
-            ret = self.heaters[htrId].dac.dac_read_register(name)
+        try:
+            commandDict = self.allCommands[cmd]
+        except KeyError:
+            self.qxmit.put('Unknown command: %s' % (cmdStr))
+            return
+
+        try:
+            subCommand = args[0]
+            args = args[1:]
+        except IndexError:
+            self.qxmit.put('Missing sub-command: %s' % (cmd))
+            return
+
+        try:
+            commandDict = commandDict[subCommand]
+        except KeyError:
+            self.qxmit.put('Unknown sub-command to %s: %s' % (cmd, subCommand))
+            return
+
+        opts = self.parseCommand(args, commandDict)
+        if cmd == 'heater':
+            heaterNum = opts.get('id', None)
+            if heaterNum not in (1,2):
+                raise ValueError('heater id must be set and be 1 or 2, not %s' % (heaterNum))
+            del opts['id']
+            heater = self.heaters[heaterNum-1]
+
+            meth = getattr(heater, subCommand)
+            ret = meth(**opts)
+            if ret is None:
+                ret = 'OK'
             self.qxmit.put(ret)
+
         elif cmd == 'setperiod':
             period, = args
             period = float(period)
             self.qxmit.put('OK')
-        elif cmd == 'heater':
-            opts = self.parseCommand(args, self.commandArgs[cmd])
-            heaterNum = opts.get('id', None)
-            if heaterNum not in (1,2):
-                raise ValueError('heater id must be set and be 1 or 2, not %s' % (heaterNum))
-            del opts['id']
-            self.heaters[heaterNum-1].reconfigureCommand(**opts)
-        elif cmd == 'connect':
-            opts = self.parseCommand(args, self.commandArgs[cmd])
-            heaterNum = opts.get('id', None)
-            if heaterNum not in (1,2):
-                raise ValueError('heater id must be set and be 1 or 2, not %s' % (heaterNum))
-            del opts['id']
-            self.heaters[heaterNum-1].connectDAC()
-        elif cmd == 'impulse':
-            opts = self.parseCommand(args, self.commandArgs[cmd])
-            heaterNum = opts.get('id', None)
-            if heaterNum not in (1,2):
-                raise ValueError('heater id must be set and be 1 or 2, not %s' % (heaterNum))
-            del opts['id']
-            self.heaters[heaterNum-1].impulseCommand(**opts)
-        else:
-            self.qxmit.put('UNKNOWN COMMAND: %s' % (cmdStr))
-            
+
     def process_queued_cmd(self, cmd_dict):
         logging.debug('processing cmd: %s' % (cmd_dict))
         

@@ -1,5 +1,6 @@
 import logging
 import threading
+import time
 
 import numpy as np
 
@@ -57,7 +58,7 @@ class PidHeater(object):
         # Try to do that safely.
         self.configLock = threading.RLock()
 
-        self.connectDAC()                
+        self.connectDAC()
         self.config_heater_params()
 
     def connectDAC(self):
@@ -68,6 +69,8 @@ class PidHeater(object):
                              self._heater_num, restart, 
                              self.heater_mode, self.heater_current)
             if restart:
+                self.dac.dac_write_register('reset', rst=1)
+                time.sleep(0.1)
                 del self.dac
             self.dac = DAC(idx, self.db, self.spi, self.io)
 
@@ -288,7 +291,7 @@ class PidHeater(object):
         for k in 'rho', 'tau', 'tint', 'R', 'maxTempRate', 'failsafePower':
             if cfg[k] is None:
                 raise RuntimeError('htr %d: heater physical parameter %s has not been set' % 
-                                (self._heater_num, k))
+                                   (self._heater_num, k))
 
     def _loopStep(self, delta, loopPeriod):
         """Given a error, calculate and apply loop correction
@@ -330,7 +333,7 @@ class PidHeater(object):
             # Convert power to current
             I_i = np.sqrt(P_i / cfg['R'])
 
-            # Avoid windup on output saturation.
+            # Avoid windup on output saturation. I am not doing this right.
             if I_i == 0:
                 if lastSum == 0:
                     sum = 0.0
@@ -354,7 +357,7 @@ class PidHeater(object):
 
         if self.traceMask & self.TRACE_LOOP:
             self.logger.info('htr %d delta: %0.4f P_i: %0.4f I_i: %0.4f lastSum: %0.4f sum: %0.4f A: %0.4f B: %0.4f' %
-                            (self._heater_num, delta, P_i, I_i * 1000, lastSum, sum, A, B))
+                             (self._heater_num, delta, P_i, I_i * 1000, lastSum, sum, A, B))
 
         if self.heater_mode == self.LOOP_MODE_PID:
             self.htr_set_heater_current(I_i)
@@ -403,7 +406,7 @@ class PidHeater(object):
             
         self._loopStep(delta, loopPeriod)
 
-    def impulseCommand(self, current, duration=None):
+    def impulse(self, current, duration=None):
         """Perturb the loop by injecting an impulse
 
         Parameters
@@ -427,18 +430,57 @@ class PidHeater(object):
         with self.configLock:
             self.loopConfig['impulseCount'] = duration
             self.loopConfig['impulseCurrent'] = current
-            
-    def reconfigureCommand(self, *, on=None,
-                           setpoint=None,
-                           trace=None,
-                           P=None, I=None,
-                           sensor=None,
-                           rho=None, tau=None, 
-                           R=None, tint=None,
-                           maxCurrent=None, 
-                           maxTempRate=None,
-                           failsafeFraction=None,
-                           loopCount=1):
+
+    def connect(self):
+        self.connectDAC()
+
+    def readReg(self, *, name=None):
+        lev = self.dac.logger.level
+        self.dac.logger.setLevel(10)
+        ret = self.dac.dac_read_register(name)
+        self.dac.logger.setLevel(lev)
+        self.logger.debug('readReg name=%s returned %s' % (name, ret))
+        return str(ret)
+
+    def writeReg(self, *, regName=None, name=None, value=None):
+        lev = self.dac.logger.level
+        self.dac.logger.setLevel(10)
+        kwArgs = dict(name=value)
+        self.dac.dac_write_register(regName, **kwArgs)
+        self.dac.logger.setLevel(lev)
+
+        ret = self.dac.dac_read_register(regName)
+        return ret
+
+    def status(self, *, full=False):
+        ret = 'mode=%s sensor=%d setpoint=%0.4f output=%0.3f' % (self.heater_mode,
+                                                                 self.heater_ctrl_sensor,
+                                                                 self.heater_set_pt,
+                                                                 self.heater_current)
+        if full:
+            cfg = self.loopConfig
+            ret2 = 'P=%d I=%d' % (cfg['P'], cfg['I'])
+            ret3 = 'rho=%0.2f tau=%0.2f R=%0.2f tint=%0.2f maxCurrent=%0.3f failsafeFraction=%0.2f' % (cfg['rho'],
+                                                                                                       cfg['tau'],
+                                                                                                       cfg['R'],
+                                                                                                       cfg['tint'],
+                                                                                                       cfg['maxCurrent'],
+                                                                                                       cfg['failsafeFraction'])
+            ret = '%s %s %s' % (ret, ret2, ret3)
+
+        return ret
+
+    def configure(self, *, on=None,
+                  setpoint=None,
+                  trace=None,
+                  P=None, I=None,
+                  sensor=None,
+                  rho=None, tau=None,
+                  R=None, tint=None,
+                  maxCurrent=None,
+                  maxTempRate=None,
+                  failsafeFraction=None,
+                  loopCount=1):
         """Reconfigure heater loop based on command options.
 
         Parameters
@@ -455,7 +497,7 @@ class PidHeater(object):
             The I_i term
         sensor : int
             Which temperature sensor to servo from.
-            If this is 0, we neither calculate not apply signal.
+            If this is 0, we neither calculate nor apply signal.
         rho : float
             Thermal resistance, K/W
         tau : float
@@ -499,7 +541,7 @@ class PidHeater(object):
             self.traceMask = trace
 
         with self.configLock:
-            self.impulseCommand(0, 0)
+            self.impulse(0, 0)
                
             if setpoint is not None:
                 self._heater_set_pt = setpoint
@@ -528,3 +570,4 @@ class PidHeater(object):
             self.last_pv = 0.0
             self.set_htr_mode(self.LOOP_MODE_PID) # Will throw up on config error.
             
+        return self.status(full=True)
