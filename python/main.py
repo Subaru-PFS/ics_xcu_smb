@@ -156,7 +156,7 @@ def main(argv=None):
     parser.add_argument('--dbLogLevel', type=int, default=logging.WARN)
     parser.add_argument('--doGUI', action='store_true',
                         help='do not start X GUI')
-    parser.add_argument('--sensorPeriod', type=float, default=0.1,
+    parser.add_argument('--sensorPeriod', type=float, default=1.0,
                         help='how often to sample the sensors')
 
     opts = parser.parse_args(argv)

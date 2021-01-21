@@ -464,7 +464,7 @@ class PidHeater(object):
                                                                                                        cfg['tau'],
                                                                                                        cfg['R'],
                                                                                                        cfg['tint'],
-                                                                                                       cfg['maxCurrent'],
+                                                                                                       self.currentLimit,
                                                                                                        cfg['failsafeFraction'])
             ret = '%s %s %s' % (ret, ret2, ret3)
 
