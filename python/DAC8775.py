@@ -65,6 +65,7 @@ class DAC(object):
         value = int.from_bytes(data_24, byteorder='big', signed=False)
         reg_bit_data = quieres.db_dac_register_data_to_dictionary(self.db, reg_name, self.dac_num)
         dict_register = dict()
+        dict_register['register'] = '0x%04x' % (value)
         for item in reg_bit_data:
             keyname = item['NAME']
             dataval = (value >> item['SHIFT']) & item['MASK']

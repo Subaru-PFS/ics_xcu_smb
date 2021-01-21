@@ -18,11 +18,13 @@ from spi_bus import DacSpi
 import cmd_loop
 from sensor_loop import SensorThread
 from tcpip import TcpServer
+import quieres
 
 from PyQt5 import QtWidgets
 import PyQt5.QtSql as qtSql
 
-def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
+def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
+           sensorPeriod=1, doGUI=True):
     """Start the SMB program
 
     Args
@@ -53,6 +55,8 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
         logger.critical("Error opening database %s: %s" % (dbPath, smbdb.lastError().text()))
         sys.exit(1)
 
+    logging.getLogger('db').setLevel(dbLogLevel)
+    
     # db = smb_db()
     qxmit = queue.Queue()
     qxmit.empty()
@@ -69,28 +73,6 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     time.sleep(.001)
 
     io.dac_bank_sel(1)
-
-    if False:
-        # create BUS Objects
-        bus1 = DacSpi(0, io)
-        bus2 = DacSpi(1, io)
-
-        bus1.xfer([3, 0, 0x10])
-        bus2.xfer([3, 0, 0x10])
-        time.sleep(.002)
-
-        # issue read command
-        data1 = bus1.xfer([0x83, 0, 0x10])
-        data2 = bus1.xfer([0, 0, 0])
-
-        logger.info('data1: %s', data1)
-        logger.info('data2: %s', data2)
-        # issue read command
-        data3 = bus2.xfer([0x83, 0, 0x10])
-        data4 = bus2.xfer([0, 0, 0])
-
-        logger.info('data3: %s', data3)
-        logger.info('data4: %s', data4)
 
     # Create SPI Bus object
     spi = spidev.SpiDev()  # create spi object
@@ -113,8 +95,8 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     # Create Bang-Bang heater objects
     bang_bangs = [bb(i, io) for i in range(2)]
 
-    for h in heaters:
-        h.logger.setLevel(logging.DEBUG)
+#    for h in heaters:
+#        h.logger.setLevel(logging.DEBUG)
         
     # Get data, service PID etc.
     # Once this is started, all access to io resources (GPIO, I2C, SPI) must use Gbl.ioLock
@@ -127,6 +109,7 @@ def runSmb(dbPath=None, logLevel=logging.INFO, sensorPeriod=1, doGUI=True):
     t1 = TcpServer(smbdb, qcmd, qxmit)
     t1.start()
 
+    
     cmdThread = cmd_loop.CmdLoop(smbdb, tlm, bang_bangs, adcs, heaters, ads1015,
                                  qcmd, qxmit)
     cmdThread.start()
@@ -170,13 +153,15 @@ def main(argv=None):
                         help='path to configuration sqlite file.')
     parser.add_argument('--logLevel', type=int, default=logging.INFO,
                         help='logging threshold. 10=debug, 20=info, 30=warn')
+    parser.add_argument('--dbLogLevel', type=int, default=logging.WARN)
     parser.add_argument('--doGUI', action='store_true',
                         help='do not start X GUI')
-    parser.add_argument('--sensorPeriod', type=float, default=0.1,
+    parser.add_argument('--sensorPeriod', type=float, default=1.0,
                         help='how often to sample the sensors')
 
     opts = parser.parse_args(argv)
     runSmb(dbPath=opts.dbPath, logLevel=opts.logLevel,
+           dbLogLevel=opts.dbLogLevel,
            sensorPeriod=opts.sensorPeriod,
            doGUI=(opts.doGUI))
     

@@ -49,7 +49,9 @@ class AD7124(object):
         self.__adc_initialize()
         self.sns = sensor(self.db, self._sns_type_id)  # Create sensor object for this ADC.
 
+        self.glitchLimit = 20 # dK/sample
         self.lastReading = np.nan
+        self.nBadReadings = 0
         
     # <editor-fold desc="******************** ADC Properties ********************">
 
@@ -204,6 +206,63 @@ class AD7124(object):
         else:
             return temperature_k
 
+    def deGlitch(self, temp, rawValue, maxBadReadings=3):
+        """Deglitch readings.
+
+        Try to deglitch readings, by comparing against the last (good) reading and
+        re-using it if the new one is suspect.
+
+        In practice we are seeing sporadic 0x404040 readings (about -263.97K), but try to
+        catch others.
+
+        If we have no idea what a good reading is, accept 0..400K
+
+        Parameters
+        ----------
+        temp : float
+            Unvalidated reading
+        rawValue : int
+            Raw ADC value for the reading
+        maxBadReadings : int, optional
+            How many bad reading to paper over, by default 3
+
+        Returns
+        -------
+        float : the value to use
+        """
+        if self.nBadReadings < maxBadReadings and np.isfinite(self.lastReading):
+            # deglitch short bursts of errors
+            # We either have a good reading, or had one recently enough.
+            if abs(temp - self.lastReading) > self.glitchLimit:
+                self.logger.warning('ADC %02d: replacing glitch reading #%d %s (%s) with %s',
+                                    self._sens_num, self.nBadReadings,
+                                    temp, rawValue, self.lastReading)
+                temp = self.lastReading
+                self.nBadReadings += 1
+            else:
+                # The normal case: a validated new good reading
+                self.lastReading = temp
+                self.nBadReadings = 0
+        else:
+            # Validate a new reading without knowing about older ones. Simply 
+            # allow all readings in 0..400K
+            if temp > 0 and temp < 400:
+                if self.nBadReadings > 0:
+                    self.logger.warning('ADC %02d: accepting reading after %d bad ones - %s (%s)',
+                                        self._sens_num, self.nBadReadings, 
+                                        temp, rawValue)
+                self.nBadReadings = 0
+                self.lastReading = temp
+            else:
+                self.logger.warning('ADC %02d: ignoring suspect reading after %d bad ones - %s (%s)',
+                                    self._sens_num, self.nBadReadings, 
+                                    temp, rawValue)
+                self.lastReading = np.nan
+                temp = np.nan
+                self.nBadReadings += 1
+
+        return temp
+        
     def read_conversion_data(self):
         int_ref = 2.50  # ADC internal reference voltage
         # avdd = 3.3
@@ -241,20 +300,18 @@ class AD7124(object):
                     rtd_temperature = self.temperature_from_rtd(rt)
 
                     if conversion == 0:
+                        # short circuit
                         rtd_temperature = 0.0
-                        self.lastReading = rtd_temperature
+                        self.lastReading = np.nan
+                        self.nBadReadings += 1
                     elif conversion == 2**24-1:
+                        # open circuit
                         rtd_temperature = 400.0
-                        self.lastReading = rtd_temperature
+                        self.lastReading = np.nan
+                        self.nBadReadings += 1
                     else:
-                        if np.isfinite(self.lastReading) and abs(rtd_temperature - self.lastReading) > 30:
-                            self.logger.warning('ADC %02d: replacing glitch reading %s (%s) with %s',
-                                                self._sens_num, rtd_temperature, conversion, self.lastReading)
-                            rtd_temperature = self.lastReading
-                            self.lastReading = np.nan
-                        else:
-                            self.lastReading = rtd_temperature
-
+                        rtd_temperature = self.deGlitch(rtd_temperature, conversion)
+                                                    
                     dkey = 'rtd' + str(self._sens_num)
                     self.tlm_dict[dkey] = rtd_temperature
 

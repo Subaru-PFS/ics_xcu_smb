@@ -14,7 +14,7 @@ class SensorThread(threading.Thread):
         self.adcs = adcs
         self.heaters = heaters
         self.ads1015 = ads1015
-        self.loopPeriod = 10.0 if sensorPeriod is None else sensorPeriod
+        self.loopPeriod = 1.0 if sensorPeriod is None else sensorPeriod
         self.__exitEvent = threading.Event()
         
         threading.Thread.__init__(self, name='sensors', daemon=True)
@@ -38,25 +38,27 @@ class SensorThread(threading.Thread):
                     except Exception as e:
                         self.logger.warn("failed to read adc %d: %s", adc.idx, e)
                 self.logger.debug("finished sensor conversions")
-
+                for h in self.heaters:
+                    try:
+                        h.updateControlLoop(self.adcs, self.loopPeriod)
+                    except Exception as e:
+                        self.logger.warn('sensor update failed on %s and is ignoring exception: %s', h, e)
+                    
                 if self.__exitEvent.is_set():
                     self.logger.info("exiting sensor loop because we were asked to.")
                     return
 
-                if self.loopPeriod is None:
-                    time.sleep(0.5)
-                else:
-                    nextTime = lastTime + self.loopPeriod
-                    now = time.time()
-                    dt = nextTime - now
-                    
-                    if dt < 0.01:
-                        self.logger.warn('loop period is too short. last=%g, next=%g, dt=%g',
-                                         lastTime, nextTime, nextTime-now)
-                        dt = 0.01
-                    time.sleep(dt)
-                    lastTime = time.time()
-                    
+                nextTime = lastTime + self.loopPeriod
+                now = time.time()
+                dt = nextTime - now - 0.001
+                
+                if dt < 0.01:
+                    self.logger.warn('loop period is too short. last=%g, next=%g, dt=%g',
+                                        lastTime, nextTime, nextTime-now)
+                    dt = 0.01
+                time.sleep(dt)
+                lastTime = time.time()
+                
         except Exception as e:
             self.logger.warn('sensor loop received and is ignoring exception: %s', e)
 
