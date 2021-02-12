@@ -70,9 +70,10 @@ class PidHeater(object):
                              self.heater_mode, self.heater_current)
             if restart:
                 self.dac.dac_write_register('reset', rst=1)
-                time.sleep(0.1)
                 del self.dac
-            self.dac = DAC(idx, self.db, self.spi, self.io)
+                self.io.dac_reset(idx)
+                time.sleep(0.1)
+            self.dac = DAC(idx, self.db, self.spi, self.io, doReset=restart)
 
             if restart:
                 self.set_htr_mode(self.heater_mode)

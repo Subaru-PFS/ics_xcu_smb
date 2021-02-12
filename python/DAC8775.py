@@ -14,7 +14,7 @@ class DAC(object):
 
     # <editor-fold desc="******************* Public Methods *******************">
 
-    def __init__(self, idx, smbdb, spi, io):
+    def __init__(self, idx, smbdb, spi, io, doReset=False):
         self.logger = logging.getLogger('heaters')
         self.db = smbdb
         self.idx = idx
@@ -28,7 +28,7 @@ class DAC(object):
 
         self.spi_obj = DacSpi(self.idx, io)
         self.pins = io
-        self.__dac_initialize()
+        self.__dac_initialize(doReset=doReset)
 
     def dac_write_register(self, regname, **kwargs):
 
@@ -197,11 +197,16 @@ class DAC(object):
 
     # <editor-fold desc="******************* Private Methods *******************">
 
-    def __dac_initialize(self):
+    def __dac_initialize(self, doReset=False):
         """ Reset the DAC """
         self.RegAddrs = quieres.db_table_data_to_dictionary(self.db,'tblDacRegisters')
 
         with Gbl.ioLock:
+            if doReset:
+                # write reset reg
+                self.dac_write_register('reset', rst=1)
+                self.logger.warning("htr %d reset", self.idx)
+
             # write reset config reg (use external reference).
             reset_config_dict = quieres.db_dac_fetch_names_n_values(self.db,'reset_config', self.dac_num)
             self.dac_write_register('reset_config', **reset_config_dict)
