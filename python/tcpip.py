@@ -37,21 +37,30 @@ class TcpServer(threading.Thread):
                 continue
                 
             if conn in readable:
-                data = conn.recv(1024)
-                if not data:
-                    self.logger.debug('socket %s closed', conn)
+                try:
+                    data = conn.recv(1024)
+                except ConnectionResetError as e:
+                    self.logger.warning('socket %s closed: %s', conn, e)
+                    conn = None
+                    continue
+                except Exception as e:
+                    self.logger.warning('socket %s closed: %s', conn, e)
                     conn = None
                     continue
                 
+                if not data:
+                    conn = None
+                    continue
+
                 # Convert byte data to string
                 data = data.decode('latin-1')
                 data = data.strip()
                 if not data:
-                    self.logger.warn('ignoring empty command')
+                    self.logger.warn('ignoring empty command :%r:', data)
                     continue
-                    
-                # add recived cmd to the transmit queue to be echoed back
-                reply = data + '\n'
+
+                # add received cmd to the transmit queue to be echoed back
+                # reply = data + '\n'
                 # conn.sendall(reply.encode('latin-1'))
                 self.__enqueue_cmd(data)
 
@@ -60,10 +69,22 @@ class TcpServer(threading.Thread):
                 except queue.Empty:
                     self.logger.warn('no reply to command!')
                     continue
-                if data:
-                    self.logger.info('reply: %s', data)
-                    data = data + '\n'
+                if not data:
+                    self.logger.warn('empty reply to command!')
+                    continue
+
+                self.logger.info('reply: %s', data)
+                data = data + '\n'
+                try:
                     conn.sendall(data.encode('latin-1'))
+                except ConnectionResetError as e:
+                    self.logger.warning('socket %s closed on send: %s', conn, e)
+                    conn = None
+                    continue
+                except Exception as e:
+                    self.logger.warning('socket %s closed on send: %s', conn, e)
+                    conn = None
+                    continue
 
     def __enqueue_cmd(self, strdata):
         if strdata[0] in '~?':
