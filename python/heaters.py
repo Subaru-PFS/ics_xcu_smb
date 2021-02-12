@@ -403,8 +403,8 @@ class PidHeater(object):
         
         # We might want to first run a Kalman filter on the raw values, if only
         # to paper over sampling jitter.  Stretch goal.
-            
-        self._loopStep(delta, loopPeriod)
+        with self.configLock:
+            self._loopStep(delta, loopPeriod)
 
     def impulse(self, current, duration=None):
         """Perturb the loop by injecting an impulse
@@ -453,7 +453,7 @@ class PidHeater(object):
         return ret
 
     def status(self, *, full=False):
-        ret = 'mode=%s sensor=%d setpoint=%0.4f output=%0.3f' % (self.heater_mode,
+        ret = 'mode=%s sensor=%d setpoint=%0.4f output=%0.4f' % (self.heater_mode,
                                                                  self.heater_ctrl_sensor,
                                                                  self.heater_set_pt,
                                                                  self.heater_current)
