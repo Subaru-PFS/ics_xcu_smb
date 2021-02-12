@@ -159,6 +159,7 @@ class CmdLoop(threading.Thread):
                                             setpoint=nonNegativeFloat,
                                             trace=integer,
                                             P=int, I=int,
+                                            offset=nonNegativeFloat,
                                             sensor=int,
                                             rho=nonNegativeFloat, tau=nonNegativeFloat,
                                             tint=nonNegativeFloat, R=nonNegativeFloat,

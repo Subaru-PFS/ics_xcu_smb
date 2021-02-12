@@ -48,7 +48,7 @@ class PidHeater(object):
 
         # There is a newer loop implementation which uses physical parameters and 
         # which is controlled entirely by the external caller. 
-        self.loopConfig = dict(P=1.0, I=1.0, 
+        self.loopConfig = dict(P=1.0, I=1.0, offset=0.0,
                                rho=None, tau=None, tint=None, R=None,
                                lastSum=0.0,
                                maxTempRate=5.0/60,
@@ -326,7 +326,7 @@ class PidHeater(object):
             lastSum = cfg['lastSum']
             sum = delta + (1 - 1/k0)*lastSum
 
-            P_i = -A*delta - B*sum
+            P_i = -A*delta - B*sum + cfg['offset']
             if P_i < 0:
                 P_i = 0
                 
@@ -474,6 +474,7 @@ class PidHeater(object):
                   setpoint=None,
                   trace=None,
                   P=None, I=None,
+                  offset=None,
                   sensor=None,
                   rho=None, tau=None,
                   R=None, tint=None,
@@ -495,6 +496,8 @@ class PidHeater(object):
             The P_i term
         I : int
             The I_i term
+        offset : float
+            The default output.
         sensor : int
             Which temperature sensor to servo from.
             If this is 0, we neither calculate nor apply signal.
@@ -549,6 +552,8 @@ class PidHeater(object):
                 cfg['P'] = P
             if I is not None:
                 cfg['I'] = I
+            if offset is not None:
+                cfg['offset'] = offset
             if rho is not None:
                 cfg['rho'] = rho
             if tau is not None:
@@ -565,7 +570,8 @@ class PidHeater(object):
                 if failsafeFraction > 100:
                     failsafeFraction = self.failsafeFraction
                 cfg['failsafeFraction'] = failsafeFraction / 100
-        
+            if cfg['offset'] > self.currentLimit:
+                cfg['offset'] = self.currentLimit
         if on:
             self.last_pv = 0.0
             self.set_htr_mode(self.LOOP_MODE_PID) # Will throw up on config error.
