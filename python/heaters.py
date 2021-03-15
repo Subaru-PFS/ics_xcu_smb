@@ -71,8 +71,6 @@ class PidHeater(object):
             if restart:
                 self.dac.dac_write_register('reset', rst=1)
                 del self.dac
-                self.io.dac_reset(idx)
-                time.sleep(0.1)
             self.dac = DAC(idx, self.db, self.spi, self.io, doReset=restart)
 
             if restart:
