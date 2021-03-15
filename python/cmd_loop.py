@@ -1,3 +1,5 @@
+from importlib import reload
+
 import logging
 import threading
 import os
@@ -5,6 +7,8 @@ import queue
 
 import quieres
 import version
+
+import topcmds
 
 class CmdException(Exception):
     @property
@@ -166,8 +170,8 @@ class CmdLoop(threading.Thread):
                                             maxCurrent=nonNegativeFloat,
                                             maxTempRate=nonNegativeFloat,
                                             failsafeFraction=nonNegativeFloat),
-                             connect=dict(id=int),
-                             readReg=dict(id=int, name=str),
+                             connect=dict(id=int, bus=str),
+                             readReg=dict(id=int, name=str, cnt=integer),
                              writeReg=dict(id=int, regName=str, name=str, value=integer),
                              status=dict(id=int, full=logical),
                              impulse=dict(id=int,
@@ -177,12 +181,17 @@ class CmdLoop(threading.Thread):
     loopSubCommands = dict(configure=dict(period=nonNegativeFloat),
                            status=dict())
 
+    mainSubCommands = dict(resetDacs=dict(bus=str),
+                           reload=dict(),
+                           setPeriod=dict(temps=nonNegativeFloat))
+
     # Sugar...
     heaterSubCommands['cfg'] = heaterSubCommands['configure']
     loopSubCommands['cfg'] = loopSubCommands['configure']
 
     allCommands = dict(heater=heaterSubCommands,
-                       loop=loopSubCommands)
+                       loop=loopSubCommands,
+                       main=mainSubCommands)
 
     def process_string_cmd(self, cmdStr):
         logging.debug('processing new cmd: %s' % (cmdStr))
@@ -222,10 +231,16 @@ class CmdLoop(threading.Thread):
                 ret = 'OK'
             self.qxmit.put(ret)
 
-        elif cmd == 'setperiod':
-            period, = args
-            period = float(period)
-            self.qxmit.put('OK')
+        elif cmd == 'main':
+            if subCommand == 'reload':
+                reload(topcmds)
+                ret = 'OK'
+            else:
+                meth = getattr(topcmds, subCommand)
+                ret = meth(**opts)
+                if ret is None:
+                    ret = 'OK'
+            self.qxmit.put(ret)
 
     def process_queued_cmd(self, cmd_dict):
         logging.debug('processing cmd: %s' % (cmd_dict))
