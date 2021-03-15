@@ -64,8 +64,10 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
     qcmd.empty()
 
     tlm = Gbl.telemetry
+
     # create IO object
-    io = GPIO_config.io()
+    Gbl.gpio = io = GPIO_config.io()
+
     # reset both DACs
     io.dac_reset(0)
     time.sleep(.001)
@@ -75,7 +77,7 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
     io.dac_bank_sel(1)
 
     # Create SPI Bus object
-    spi = spidev.SpiDev()  # create spi object
+    Gbl.spi = spi = spidev.SpiDev()  # create spi object
     spi_id = 0
     cs_id = 0
     spi.open(spi_id, cs_id)
@@ -84,10 +86,10 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
     spi.cshigh = True
 
     # Create DAC objects.
-    heaters = [PidHeater(i, smbdb, tlm, spi, io) for i in range(2)]
+    Gbl.heaters = heaters = [PidHeater(i, smbdb, tlm, spi, io) for i in range(2)]
 
     # Create ADC objects.
-    adcs = [ad7124(i, smbdb, tlm, spi, io) for i in range(12)]
+    Gbl.adcs = adcs = [ad7124(i, smbdb, tlm, spi, io) for i in range(12)]
 
     # Create ADS1015 object
     ads1015 = ADS1015.ADS1015(smbdb)

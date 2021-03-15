@@ -9,6 +9,7 @@ import threading
 
 import numpy as np
 
+# Recursive lock to go around *all* bus I/O.
 ioLock = threading.RLock()
 
 # Global Dictionary to hold shared TLM values
