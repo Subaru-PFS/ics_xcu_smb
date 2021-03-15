@@ -69,9 +69,7 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
     Gbl.gpio = io = GPIO_config.io()
 
     # reset both DACs
-    io.dac_reset(0)
-    time.sleep(.001)
-    io.dac_reset(1)
+    io.dac_reset()
     time.sleep(.001)
 
     io.dac_bank_sel(1)

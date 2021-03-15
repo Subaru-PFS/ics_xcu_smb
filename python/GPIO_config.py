@@ -2,6 +2,7 @@ import atexit
 import logging
 import signal
 import threading
+import time
 
 import RPi.GPIO as GPIO
 
@@ -55,7 +56,16 @@ class io(object):
 
         atexit.register(cleanup)
         signal.signal(signal.SIGTERM, sigCleanup)
-        
+
+        self.configureGpio(True)
+
+    def configureGpio(self, force=False):
+        if force:
+            self.isConfigured = False
+
+        if self.isConfigured:
+            raise RuntimeError("avoiding reconfiguring GPIO pins. Call with force=True to override")
+
         with Gbl.ioLock:
             """ SET GPIO numbering mode to use GPIO designation, NOT pin numbers """
             GPIO.setmode(GPIO.BCM)
@@ -139,10 +149,17 @@ class io(object):
             pin = self.pin_map['nDAC_ALARM']
             GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-    def dac_reset(self, state):
+        self.isConfigured = True
+
+    def dac_reset(self, holdTime=0.001):
+        """Send RESET-BAR to the two DACs."""
+
         pin = self.pin_map['nDAC_RESET']
         with Gbl.ioLock:
-            GPIO.output(pin, state)
+            GPIO.output(pin, 0)
+            time.sleep(holdTime)
+            GPIO.output(pin, 1)
+
 
     def dac_ldac(self, state):
         pin = self.pin_map['nLDAC']
