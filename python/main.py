@@ -4,7 +4,6 @@ import queue
 import sys
 import time
 
-import RPi.GPIO as GPIO
 import spidev
 
 import ADS1015
@@ -14,11 +13,10 @@ from AD7124 import AD7124 as ad7124
 from BangBang import bang_bang as bb
 from SmbGuiWindow import MainWindow
 from heaters import PidHeater
-from spi_bus import DacSpi
 import cmd_loop
 from sensor_loop import SensorThread
 from tcpip import TcpServer
-import quieres
+import topcmds
 
 from PyQt5 import QtWidgets
 import PyQt5.QtSql as qtSql
@@ -71,7 +69,6 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
     # reset both DACs
     io.dac_reset()
     time.sleep(.001)
-
     io.dac_bank_sel(1)
 
     # Create SPI Bus object

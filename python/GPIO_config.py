@@ -49,7 +49,7 @@ class io(object):
             "nADC_BANK3_SEL": 22,
             "DAC_CLR": 23,
             "GPIO24": 24,
-            "nDAC_BANCK_SEL": 25,
+            "nDAC_BANK_SEL": 25,
             "nADC_SYNC": 26,
             "nADC_BANK2_SEL": 27,
         }
@@ -111,7 +111,7 @@ class io(object):
             GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
             # Set /DAC_BANK_SEL to output.
-            pin = self.pin_map['nDAC_BANCK_SEL']
+            pin = self.pin_map['nDAC_BANK_SEL']
             GPIO.setup(pin, GPIO.OUT)
             GPIO.output(pin, 0)  # disable bank select
 
@@ -160,7 +160,6 @@ class io(object):
             time.sleep(holdTime)
             GPIO.output(pin, 1)
 
-
     def dac_ldac(self, state):
         pin = self.pin_map['nLDAC']
         with Gbl.ioLock:
@@ -172,7 +171,7 @@ class io(object):
             GPIO.output(pin, state)
 
     def dac_bank_sel(self, state):
-        pin = self.pin_map['nDAC_BANCK_SEL']
+        pin = self.pin_map['nDAC_BANK_SEL']
         with Gbl.ioLock:
             GPIO.output(pin, state)
 
