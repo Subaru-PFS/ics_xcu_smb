@@ -433,12 +433,20 @@ class PidHeater(object):
     def connect(self):
         self.connectDAC()
 
-    def readReg(self, *, name=None):
+    def readReg(self, *, name=None, cnt=1):
         lev = self.dac.logger.level
         self.dac.logger.setLevel(10)
-        ret = self.dac.dac_read_register(name)
+        last = None
+        for i in range(cnt):
+            ret = self.dac.dac_read_register(name)
+            self.logger.debug('readReg %d/%d name=%s returned %s' % (i+1, cnt, name, ret))
+            if last is None:
+                last = ret
+            if ret != last:
+                self.logger.warn('readReg %d/%d DIFFERED' % (i+1, cnt))
+            last = ret
+
         self.dac.logger.setLevel(lev)
-        self.logger.debug('readReg name=%s returned %s' % (name, ret))
         return str(ret)
 
     def writeReg(self, *, regName=None, name=None, value=None):
