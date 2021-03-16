@@ -57,7 +57,7 @@ class io(object):
         atexit.register(cleanup)
         signal.signal(signal.SIGTERM, sigCleanup)
 
-        self.configureGpio(True)
+        self.configureGpio(force=True)
 
     def configureGpio(self, force=False):
         if force:
