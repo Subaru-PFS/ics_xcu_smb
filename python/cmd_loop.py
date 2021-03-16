@@ -181,7 +181,7 @@ class CmdLoop(threading.Thread):
     loopSubCommands = dict(configure=dict(period=nonNegativeFloat),
                            status=dict())
 
-    mainSubCommands = dict(resetDacs=dict(bus=str),
+    mainSubCommands = dict(resetDacs=dict(bus=str, noConnect=logical),
                            reload=dict(),
                            setPeriod=dict(temps=nonNegativeFloat))
 
