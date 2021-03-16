@@ -162,7 +162,7 @@ class DAC(object):
         
         return dacdata
 
-    def dac_check_status(self):
+    def dac_check_status(self, badOnly=False):
         retries = 2
         doReset = dict()
         while retries > 0:
@@ -175,9 +175,10 @@ class DAC(object):
                 if status[b]:
                     self.logger.warn('htr %d error: %s is set', self.idx, b)
                     doReset[b] = 1
-            for b in goodBits:
-                if not status[b]:
-                    self.logger.warn('htr %d error: %s is not set', self.idx, b)
+            if not badOnly:
+                for b in goodBits:
+                    if not status[b]:
+                        self.logger.warn('htr %d error: %s is not set', self.idx, b)
 
             if doReset and retries > 0:
                 self.dac_write_register('status', **doReset)
@@ -262,7 +263,7 @@ class DAC(object):
             dacdata = self.dac_read_dac_data_reg()
             self.logger.info("htr %d dac value = 0x04%x", self.idx, dacdata)
 
-            
+            self.dac_check_status(badOnly=True)
 
     def __search_reg_address_from_name(self, name):
         for a in self.RegAddrs:
