@@ -197,46 +197,64 @@ class DAC(object):
 
     # <editor-fold desc="******************* Private Methods *******************">
 
-    def __dac_initialize(self, doReset=False):
+    def _update_one_register(self, registerName, **config):
+        self.logger.info("htr %d writing %s: %s", self.idx, registerName, config)
+        self.dac_write_register(registerName, **config)
+        time.sleep(0.001)
+        readBack = self.dac_read_register(registerName)
+
+        ok = True
+        for k,v in config.items():
+            if v != readBack[k]:
+                ok = False
+        if not ok:
+            self.logger.warning("MISMATCH on htr %d %s wrote %s", self.idx, registerName, config)
+            self.logger.warning("MISMATCH on htr %d %s read  %s", self.idx, registerName, readBack)
+        else:
+            self.logger.info("htr %d %s: %s", self.idx, registerName, readBack)
+
+    def __dac_initialize(self, doReset=True):
         """ Reset the DAC """
         self.RegAddrs = quieres.db_table_data_to_dictionary(self.db,'tblDacRegisters')
 
         with Gbl.ioLock:
-            if doReset:
+            if True or doReset:
                 # write reset reg
                 self.dac_write_register('reset', rst=1)
                 self.logger.warning("htr %d reset", self.idx)
+                time.sleep(0.01)
 
-            # write reset config reg (use external reference).
-            reset_config_dict = quieres.db_dac_fetch_names_n_values(self.db,'reset_config', self.dac_num)
-            self.dac_write_register('reset_config', **reset_config_dict)
-            resetconfig = self.dac_read_register('reset_config')
-            # if reset_config_dict != resetconfig:
-            self.logger.info("htr %d reset_config: %s", self.idx, resetconfig)
+            self.dac_check_status(badOnly=True)
+            for regName in ('reset_config', 'Select_Buck_Boost_converter', 'configuration_Buck_Boost_converter',
+                            'select_dac', 'configuration_dac'):
+
+                config_dict = quieres.db_dac_fetch_names_n_values(self.db, regName, self.dac_num)
+                self._update_one_register(regName, **config_dict)
 
             # Write Select Buck Boost Register (Select A,B,C & D).
-            buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'Select_Buck_Boost_converter', self.dac_num)
-            self.dac_write_register('Select_Buck_Boost_converter', **buck_boost_dict)
-            buckboostsel = self.dac_read_register('Select_Buck_Boost_converter')
-            self.logger.info("htr %d select_buck_boost: %s", self.idx, buckboostsel)
+            #buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'Select_Buck_Boost_converter', self.dac_num)
+            #self.dac_write_register('Select_Buck_Boost_converter', **buck_boost_dict)
+            #buckboostsel = self.dac_read_register('Select_Buck_Boost_converter')
+            #self.logger.info("htr %d select_buck_boost: %s", self.idx, buckboostsel)
 
             # Write Config Buck-Boost reg.
-            cfg_buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_Buck_Boost_converter', self.dac_num)
-            self.dac_write_register('configuration_Buck_Boost_converter', **cfg_buck_boost_dict)
-            buckboostconfig = self.dac_read_register('configuration_Buck_Boost_converter')
-            self.logger.info("htr %d config_buck_boost: %s", self.idx, buckboostconfig)
+            #cfg_buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_Buck_Boost_converter', self.dac_num)
+            #self.dac_write_register('configuration_Buck_Boost_converter', **cfg_buck_boost_dict)
+            #buckboostconfig = self.dac_read_register('configuration_Buck_Boost_converter')
+            #self.logger.info("htr %d config_buck_boost: %s", self.idx, buckboostconfig)
 
             # Write Select DAC Register.
-            sel_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'select_dac', self.dac_num)
-            self.dac_write_register('select_dac', **sel_dac_dict)
-            dacsel = self.dac_read_register('select_dac')
-            self.logger.info("htr %d select_dac: %s", self.idx, dacsel)
+            #sel_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'select_dac', self.dac_num)
+            #self.dac_write_register('select_dac', **sel_dac_dict)
+            #dacsel = self.dac_read_register('select_dac')
+            #self.logger.info("htr %d select_dac: %s", self.idx, dacsel)
 
             # Write Config Dac Register.
-            cfg_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_dac', self.dac_num)
-            self.dac_write_register('configuration_dac', **cfg_dac_dict)
-            daccnfg = self.dac_read_register('configuration_dac')
-            self.logger.info("htr %d config_dac: %s", self.idx, daccnfg)
+            #cfg_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_dac', self.dac_num)
+            #self._update_one_register('configuration_dac', **cfg_dac_dict)
+            #self.dac_write_register('configuration_dac', **cfg_dac_dict)
+            #daccnfg = self.dac_read_register('configuration_dac')
+            #self.logger.info("htr %d config_dac: %s", self.idx, daccnfg)
 
             # Write Program DAC Data.
             self.dac_write_dac_data_reg(0x0000)
