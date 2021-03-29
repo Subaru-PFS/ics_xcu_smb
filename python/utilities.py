@@ -52,6 +52,7 @@ def temp_f_to_k(temp_f):
 def getbytes_from_reg_bits(kwargs, reg_dict):
     write_bytes = 0x0000
     for kword in kwargs:
+        found = False
         for item in reg_dict:
             if item["NAME"] == kword:
                 name = item["NAME"]
@@ -59,4 +60,9 @@ def getbytes_from_reg_bits(kwargs, reg_dict):
                 shift = item["SHIFT"]
                 mask = item["MASK"]
                 write_bytes = write_bytes | ((value & mask) << shift)
+                found = True
+        if not found:
+            import ipdb; ipdb.set_trace()
+            raise KeyError("unknown field name %s for register fields %s" % (kword, [f['NAME'] for f in reg_dict]))
+
     return write_bytes
