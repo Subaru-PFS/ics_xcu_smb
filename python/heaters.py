@@ -14,19 +14,18 @@ class PidHeater(object):
 
     LOOP_MODE_IDLE = 0
     LOOP_MODE_POWER = 1
-    LOOP_MODE_SIMPLE_PID = 2
     LOOP_MODE_PID = 3
 
     TRACE_LOOP = 0x01
     
-    def __init__(self, idx, smbdb, tlm_dict, spi, io):
+    def __init__(self, idx, smbdb, dacs):
         self.logger = logging.getLogger('heaters')
         self.logger.setLevel(logging.INFO)
         self.db = smbdb
 
-        self.spi = spi
-        self.io = io
-        
+        self.dacs = dacs
+
+        self._dac_idx = idx
         self._heater_num = idx + 1
 
         self._maxCurrent = 0.024

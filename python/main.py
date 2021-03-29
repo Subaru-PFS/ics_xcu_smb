@@ -12,7 +12,8 @@ import Gbl
 from AD7124 import AD7124 as ad7124
 from BangBang import bang_bang as bb
 from SmbGuiWindow import MainWindow
-from heaters import PidHeater
+import heaterDacs
+import heaters
 import cmd_loop
 from sensor_loop import SensorThread
 from tcpip import TcpServer
@@ -63,13 +64,12 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
 
     tlm = Gbl.telemetry
 
-    # create IO object
-    Gbl.gpio = io = GPIO_config.io()
+    # create GPIO object
+    Gbl.gpio = gpio = GPIO_config.Gpio()
 
-    # reset both DACs
-    io.dac_reset()
-    time.sleep(.001)
-    io.dac_bank_sel(1)
+    # Create DAC objects.
+    dacs = heaterDacs.HeaterDacs(gpio)
+    Gbl.heaters = [heaters.PidHeater(i, smbdb, dacs) for i in range(2)]
 
     # Create SPI Bus object
     Gbl.spi = spi = spidev.SpiDev()  # create spi object
