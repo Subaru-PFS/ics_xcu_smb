@@ -1,6 +1,5 @@
 import logging
 import threading
-import time
 
 import numpy as np
 
@@ -395,15 +394,22 @@ class PidHeater(object):
         self.dac.logger.setLevel(lev)
         return str(ret)
 
-    def writeReg(self, *, regName=None, name=None, value=None):
+    def writeReg(self, *, name=None, field=None, value=None):
         lev = self.dac.logger.level
         self.dac.logger.setLevel(10)
-        kwArgs = dict(name=value)
-        self.dac.dac_write_register(regName, **kwArgs)
+        kwArgs = {field:value}
+        self.dac.dac_write_register(name, **kwArgs)
         self.dac.logger.setLevel(lev)
 
-        ret = self.dac.dac_read_register(regName)
-        return ret
+        ret = self.dac.dac_read_register(name)
+        return str(ret)
+
+    def writeRaw(self, num, value):
+        lev = self.dac.logger.level
+        self.dac.logger.setLevel(10)
+        ret = self.dac.dac_write_raw(num, value)
+        self.dac.logger.setLevel(lev)
+        return str(ret)
 
     def status(self, *, full=False):
         ret = 'mode=%s sensor=%d setpoint=%0.4f output=%0.4f' % (self.heater_mode,
