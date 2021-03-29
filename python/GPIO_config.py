@@ -1,13 +1,15 @@
 import atexit
 import logging
 import signal
-import threading
-import time
 
 import RPi.GPIO as GPIO
 
 import Gbl
 
+# One reason for using this module is to register cleanup routines
+# which deallocate the GPIO resources. Nice to do: avoids noisy complaints 
+# and allocation failures. 
+#
 def sigCleanup(signum, frame):
     logging.warn("caught signal %s", signum)
     raise SystemExit()
@@ -18,11 +20,10 @@ def cleanup():
     except RuntimeWarning:
         return
     
-    logging.warn('reset GPIO configuration on exit. thread=%s' % (threading.current_thread().name))
+    logging.warn('reset GPIO configuration on exit.')
     
-class io(object):
-
-    def __init__(self, ):
+class Gpio(object):
+    def __init__(self):
         """
         @dictionary GPIO Pin Numbers
         @Maps DAC singals to GPIO PINS.
@@ -30,7 +31,6 @@ class io(object):
         self.pin_map = {
             "SDA_0": 2,
             "SCL_0": 3,
-            "nDAC_ALARM": 4,
             "HI_PWR_EN1": 5,
             "HI_PWR_EN2": 6,
             "nADC_CS1": 7,
@@ -38,34 +38,40 @@ class io(object):
             "SPI0_MISO": 9,
             "SPI0_MOSI": 10,
             "SPI0_SCLK": 11,
+            "nADC_BANK1_SEL": 16,
+            "nADC_BANK3_SEL": 22,
+            "GPIO24": 24,
+            "nADC_SYNC": 26,
+            "nADC_BANK2_SEL": 27,
+
+            # DACs
+            "nDAC_ALARM": 4,
             "nDAC_RESET": 12,
             "nLDAC": 13,
-            "nADC_BANK1_SEL": 16,
-            "nDAC_CS1": 17,
             "nDAC_CS0": 18,
             "SPI1_MISO": 19,
             "SPI1_MOSI": 20,
             "SPI1_SCLK": 21,
-            "nADC_BANK3_SEL": 22,
             "DAC_CLR": 23,
-            "GPIO24": 24,
             "nDAC_BANK_SEL": 25,
-            "nADC_SYNC": 26,
-            "nADC_BANK2_SEL": 27,
+
         }
 
         atexit.register(cleanup)
         signal.signal(signal.SIGTERM, sigCleanup)
 
-        self.configureGpio(force=True)
+        self.configureGpio()
 
-    def configureGpio(self, force=False):
-        if force:
-            self.isConfigured = False
+    def output(self, pin, state):
+        """Direct access to GPIO.output(). """
+        state = bool(state)
+        GPIO.output(pin, state)
 
-        if self.isConfigured:
-            raise RuntimeError("avoiding reconfiguring GPIO pins. Call with force=True to override")
+    def input(self, pin):
+        """Direct access to GPIO.input(). """
+        return GPIO.input(pin)
 
+    def configureGpio(self):
         with Gbl.ioLock:
             """ SET GPIO numbering mode to use GPIO designation, NOT pin numbers """
             GPIO.setmode(GPIO.BCM)
@@ -120,11 +126,6 @@ class io(object):
             GPIO.setup(pin, GPIO.OUT)
             GPIO.output(pin, 1)
 
-            # Set /DAC_SC1 to output.
-            pin = self.pin_map['nDAC_CS1']
-            GPIO.setup(pin, GPIO.OUT)
-            GPIO.output(pin, 1)
-
             # Set ADC /SYNC to output.
             pin = self.pin_map['nADC_SYNC']
             GPIO.setup(pin, GPIO.OUT)
@@ -148,8 +149,6 @@ class io(object):
             # Set DAC /Alarm to input.
             pin = self.pin_map['nDAC_ALARM']
             GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-        self.isConfigured = True
 
     # There are 12 ADCs divided into three banks of 4. To enbale an
     # ADC select the bank using the bank_sel lines and then the chip
