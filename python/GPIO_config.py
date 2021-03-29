@@ -151,53 +151,6 @@ class io(object):
 
         self.isConfigured = True
 
-    def dac_reset(self, holdTime=0.001):
-        """Send RESET-BAR to the two DACs."""
-
-        pin = self.pin_map['nDAC_RESET']
-        with Gbl.ioLock:
-            GPIO.output(pin, 0)
-            time.sleep(holdTime)
-            GPIO.output(pin, 1)
-
-    def dac_ldac(self, state):
-        pin = self.pin_map['nLDAC']
-        with Gbl.ioLock:
-            GPIO.output(pin, state)
-
-    def dac_clr(self, state):
-        pin = self.pin_map['DAC_CLR']
-        with Gbl.ioLock:
-            GPIO.output(pin, state)
-
-    def dac_bank_sel(self, state):
-        pin = self.pin_map['nDAC_BANK_SEL']
-        with Gbl.ioLock:
-            GPIO.output(pin, state)
-
-    def dac_sel(self, dac_id):
-        cs0 = self.pin_map['nDAC_CS0']
-        cs1 = self.pin_map['nDAC_CS1']
-
-        with Gbl.ioLock:
-            self.dac_bank_sel(False)
-
-            if dac_id == 0:
-                GPIO.output(cs1, 0)
-                GPIO.output(cs0, 0)
-            elif dac_id == 1:
-                GPIO.output(cs1, 0)
-                GPIO.output(cs0, 1)
-            elif dac_id == 2:
-                GPIO.output(cs1, 1)
-                GPIO.output(cs0, 0)
-            elif dac_id == 3:
-                GPIO.output(cs1, 1)
-                GPIO.output(cs0, 1)
-            else:
-                GPIO.output(cs1, 1)
-                GPIO.output(cs0, 1)
-
     # There are 12 ADCs divided into three banks of 4. To enbale an
     # ADC select the bank using the bank_sel lines and then the chip
     # using the chip_sel lines.
