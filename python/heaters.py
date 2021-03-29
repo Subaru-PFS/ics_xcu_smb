@@ -39,9 +39,7 @@ class PidHeater(object):
         self._heater_mode = self.LOOP_MODE_IDLE
         self._heater_ctrl_sensor = 0
         self._heater_set_pt = 0.0
-        self.tlm_dict = tlm_dict
         self.last_pv = 0.0  # last process variable
-        self.mv_i = 0.0  # prescaled integration sum
         self.mv_min = 0.0
         self.mv_max = 5000.0
 
@@ -171,9 +169,6 @@ class PidHeater(object):
         elif mode == self.LOOP_MODE_POWER:
             self.htr_enable_heater_current(True)
             self.heater_mode = self.LOOP_MODE_POWER
-        elif mode == self.LOOP_MODE_SIMPLE_PID:
-            self.htr_enable_heater_current(True)
-            self.heater_mode = self.LOOP_MODE_SIMPLE_PID
         elif mode == self.LOOP_MODE_PID:
             self.validate_loop_params() # Will raise exception on failure.
             self.htr_enable_heater_current(True)
@@ -330,11 +325,6 @@ class PidHeater(object):
 
         sensor = 'rtd%d' % (self.heater_ctrl_sensor)
         pv = Gbl.telemetry[sensor]
-
-        # Leave existing SMB loop unchanged.
-        if self.heater_mode == self.LOOP_MODE_SIMPLE_PID:
-            self.simple_loop(pv)
-            return
 
         delta = pv - self._heater_set_pt
 
