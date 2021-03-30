@@ -12,7 +12,7 @@ class DAC(object):
 
     def __init__(self, idx, smbdb, dacs, doReset=False):
         self.logger = logging.getLogger('heaters')
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
         self.db = smbdb
         self.idx = idx
         self.dac_num = idx + 1

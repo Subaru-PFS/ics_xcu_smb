@@ -58,8 +58,6 @@ class PidHeater(object):
         self.config_heater_params()
 
     def connectDAC(self):
-        idx = self._heater_num - 1
-
         restart = hasattr(self, 'dac')
         self.logger.info('htr %d: connecting DAC (restart %s, mode %d, current %0.4f)',
                          self._heater_num, restart,
@@ -67,7 +65,7 @@ class PidHeater(object):
         if restart:
             self.dac.dac_write_register('reset', reset=1)
             del self.dac
-        self.dac = DAC(idx, self.db, self.dacs)
+        self.dac = DAC(self._dac_idx, self.db, self.dacs)
 
         if restart:
             self.set_htr_mode(self.heater_mode)
@@ -227,11 +225,13 @@ class PidHeater(object):
         self.logger.debug('htr %d: current=%0.4f base=0x%04x residual=%d',
                           self._heater_num, current, baseRequest, residualRequest)
         with Gbl.ioLock:
-            self.dacs.writeDacData(self.idx, 'a', baseRequest + (residualRequest > 0))
-            self.dacs.writeDacData(self.idx, 'b', baseRequest + (residualRequest > 1))
-            self.dacs.writeDacData(self.idx, 'c', baseRequest + (residualRequest > 2))
-            self.dacs.writeDacData(self.idx, 'd', baseRequest)
+            self.dacs.writeDacData(self._dac_idx, 'a', baseRequest + (residualRequest > 0))
+            self.dacs.writeDacData(self._dac_idx, 'b', baseRequest + (residualRequest > 1))
+            self.dacs.writeDacData(self._dac_idx, 'c', baseRequest + (residualRequest > 2))
+            self.dacs.writeDacData(self._dac_idx, 'd', baseRequest)
             self._heater_current = current
+
+        quieres.db_update_htr_params(self.db, current, 'htr_current', self._heater_num)
 
     def validate_loop_params(self):
         """Check whether we can run a non-simple loop. Raises exception on failure. """
