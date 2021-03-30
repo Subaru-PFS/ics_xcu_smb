@@ -16,7 +16,7 @@ class HeaterDacs:
                     resetConfig=2,
                     selectDac=3,
                     configDac=4,
-                    dacData=5,
+                    dacData=5, data=5,
                     selectBb=6,
                     configBb=7,
                     status=0xb,
@@ -45,11 +45,13 @@ class HeaterDacs:
                     device_ID=17,
                     )
 
-    def __init__(self, gpio, logLevel=logging.INFO, halfTickLen=1e-6):
+    def __init__(self, gpio=None, logLevel=logging.INFO, halfTickLen=1e-6):
         self.logger = logging.getLogger('fuckery')
         self.logger.setLevel(logLevel)
         self.logger.info('starting logging!')
 
+        if gpio is None:
+            gpio = GPIO_config.Gpio()
         self.gpio = gpio
 
         self.mosi = self.gpio.pin_map['SPI1_MOSI']
@@ -60,6 +62,8 @@ class HeaterDacs:
 
         # set very slow for testing. Runs without errors with 1e-6
         self.halfTickLen = halfTickLen
+
+        self.hasBeenInitialized = False
 
     def reset(self):
         """Hardware reset both DACs
@@ -74,6 +78,8 @@ class HeaterDacs:
             self.gpio.output(pin, 0)
             self.gpio.output(pin, 1)
 
+        self.hasBeenInitialized = False
+
     def clear(self):
         """Reset output level of both DACs
 
@@ -83,6 +89,8 @@ class HeaterDacs:
         with Gbl.ioLock:
             self.gpio.output(pin, 1)
             self.gpio.output(pin, 0)
+
+        self.hasBeenInitialized = False
 
     def set_mss(self, enable):
         """Assert or drop the Mux Master Slave Select signal. """
@@ -197,6 +205,21 @@ class HeaterDacs:
 
         return retval & 0xffff
 
+    def _hackSdo(self):
+        """Arrange for DAC reads to work.
+
+        DAC 0 are somehow interdependent DAC 1. In any case,
+        we sometimes need to set the DSDO bit on a DAC before the other DAC can be read. """
+
+        self.hasBeenInitialized = True
+
+        for dac in 1, 0:
+            dacSelect = self.readReg(dac, 'selectDac')
+            dacSelect |= (1 << 4)
+            self.writeReg(dac, 'selectDac', dacSelect)
+
+        self.logger.info('Fixed DSDO bits...')
+
     def readReg(self, dac, reg):
         """Read a DAC register.
 
@@ -212,6 +235,9 @@ class HeaterDacs:
         """
         if isinstance(reg, str):
             reg = self.regNames[reg]
+
+        if not self.hasBeenInitialized:
+            self._hackSdo()
 
         # Set high bit on register number to request a read.
         with Gbl.ioLock:
