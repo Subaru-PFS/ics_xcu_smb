@@ -116,7 +116,7 @@ class HeaterDacs:
         while i > 0:
             i -= 1
 
-    def selectDac(self, dac_id):
+    def selectDac(self, dac_idx):
         """Select the right DAC.
 
         From the pi, there is a single "Chip Select" line. When 0, DAC 1 is selected; when 1, DAC 2 is selected.
@@ -128,12 +128,12 @@ class HeaterDacs:
         The .halfTicks() are not necessary, but help with visualization.
         """
 
-        if dac_id not in {1,2}:
-            raise ValueError("unknown dac_id (not 1 or 2): %s" % (dac_id))
+        if dac_idx not in {0,1}:
+            raise ValueError("unknown dac_idx (not 0 or 1): %s" % (dac_idx))
         with Gbl.ioLock:
             self.set_mss(False)
             self.halfTick()
-            self.gpio.output(self.cs0, dac_id == 2)
+            self.gpio.output(self.cs0, dac_idx == 1)
             self.halfTick()
             self.set_mss(True)
             self.halfTick()
@@ -165,7 +165,7 @@ class HeaterDacs:
         ----
         datalist : sequence of bytes
           The data to send.
-        dacNum : 1 or 2
+        dacNum : 0 or 1
           The DAC to command.
 
         Always select the DAC before this transfer, and always deselect it 
@@ -323,7 +323,7 @@ class HeaterDacs:
             else:
                 check = None
 
-        if doCheck and value != check:
+        if doCheck and dacId != 'none' and value != check:
             self.logger.warn('DAC readback failed. expected 0x%04x, got 0x%04x',
                              value, check)
 
