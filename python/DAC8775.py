@@ -32,7 +32,7 @@ class DAC(object):
     def dac_value_dictionary(self, regname, value):
         reg_bit_data = quieres.db_dac_register_data_to_dictionary(self.db, regname, self.dac_num)
         dict_register = dict()
-        dict_register['register'] = '0x%04x' % (value)
+        dict_register['register'] = value
         for item in reg_bit_data:
             keyname = item['NAME']
             dataval = (value >> item['SHIFT']) & item['MASK']
@@ -40,13 +40,14 @@ class DAC(object):
         return dict_register
 
     def dac_write_register(self, regname, **kwargs):
-        newValue = self.dat_register_value(regname, **kwargs)
+        newValue = self.dac_register_value(regname, **kwargs)
 
         self.dacs.writeReg(self.idx, regname, newValue)
         self.logger.debug('heater %d wrote reg %s = 0x%04x/%d (%s)',
                           self.idx, regname,
                           newValue, newValue,
                           kwargs)
+        return newValue
 
     def dac_read_register(self, regname):
         value = self.dacs.readReg(self.idx, regname)
@@ -94,7 +95,7 @@ class DAC(object):
             
     def _initialize_one_register(self, registerName, **config):
         self.logger.info("htr %d initializing %s: %s", self.idx, registerName, config)
-        self.dac_write_register(registerName, **config)
+        wrote = self.dac_write_register(registerName, **config)
         readBack = self.dac_read_register(registerName)
 
         ok = True
@@ -102,8 +103,10 @@ class DAC(object):
             if v != readBack[k]:
                 ok = False
         if not ok:
-            self.logger.warning("MISMATCH on htr %d %s wrote %s", self.idx, registerName, config)
-            self.logger.warning("MISMATCH on htr %d %s read  %s", self.idx, registerName, readBack)
+            self.logger.warning("MISMATCH on htr %d %s wrote 0x%04x %s",
+                                self.idx, registerName, wrote, config)
+            self.logger.warning("MISMATCH on htr %d %s read  0x%04x %s",
+                                self.idx, registerName, readBack['register'], readBack)
         else:
             self.logger.info("htr %d %s: %s", self.idx, registerName, readBack)
 
