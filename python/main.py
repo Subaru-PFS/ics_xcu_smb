@@ -70,6 +70,7 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
 
     # Create DAC objects.
     dacs = heaterDacs.HeaterDacs(gpio)
+    dacs.reset()
     Gbl.heaters = [heaters.PidHeater(i, smbdb, dacs) for i in range(2)]
 
     # Create SPI Bus object

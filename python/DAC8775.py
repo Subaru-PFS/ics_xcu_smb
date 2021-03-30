@@ -120,19 +120,30 @@ class DAC(object):
                 self.logger.warning("htr %d reset", self.idx)
                 time.sleep(0.01)
 
-            self.dac_check_status(badOnly=True)
-
             # Need to revisit this list and sequence -- CPL.
-            for regName in ('reset_config', 'Select_Buck_Boost_converter', 'configuration_Buck_Boost_converter',
+            for regName in ('select_dac', 'reset_config',
+                            'Select_Buck_Boost_converter',
+                            'configuration_Buck_Boost_converter',
                             'configuration_dac'):
-                config_dict = quieres.db_dac_fetch_names_n_values(self.db, regName, self.dac_num)
+                if regName == 'select_dac':
+                    config_dict = dict(dsdo=1, cha=1, chb=1, chc=1, chd=1)
+                elif regName == 'reset_config':
+                    config_dict = dict(clrena=1, clrenb=1, clrenc=1, clrend=1)
+                elif regName == 'Select_Buck_Boost_converter':
+                    config_dict = dict(dca=1, dcb=1, dcc=1, dcd=1)
+                elif regName == 'configuration_Buck_Boost_converter':
+                    config_dict = dict(pnsel=1)
+                # elif regName == 'configuration_dac':
+                #     config_dict = dict()
+                else:
+                    config_dict = quieres.db_dac_fetch_names_n_values(self.db, regName, self.dac_num)
                 self._initialize_one_register(regName, **config_dict)
 
             # Initialize DAC
             self.dacs.writeDacData(self.idx, 'all', 0)
 
-            # Read Config Dac Register. All or one? Do correctly or drop. -- CPL
-            dacdata = self.dac_read_dac_data_reg()
-            self.logger.info("htr %d dac value = 0x04%x", self.idx, dacdata)
+            # Check DAC output levels
+            dacdata = [self.dacs.readDacData(self.idx, i) for i in 'abcd']
+            self.logger.info("htr %d dac values = %s", self.idx, dacdata)
 
             self.dac_check_status(badOnly=True)
