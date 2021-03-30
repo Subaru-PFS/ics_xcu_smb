@@ -293,7 +293,8 @@ class HeaterDacs:
             raise ValueError('unknown channel id %s' % channel)
 
         # Get the rest of the bits from someplace sensible -- CPL
-        regMask = 0 | (channelMask << 5)
+        regMask = self.readReg(idx, 'selectDac') & ~(0xf << 5)
+        regMask |= (channelMask << 5)
         self.writeReg(idx, 'selectDac', regMask)
 
     def writeDacData(self, heaterIdx, dacId, value, doCheck=True):
