@@ -1,6 +1,5 @@
 import logging
 import threading
-import time
 
 import numpy as np
 
@@ -14,19 +13,18 @@ class PidHeater(object):
 
     LOOP_MODE_IDLE = 0
     LOOP_MODE_POWER = 1
-    LOOP_MODE_SIMPLE_PID = 2
     LOOP_MODE_PID = 3
 
     TRACE_LOOP = 0x01
     
-    def __init__(self, idx, smbdb, tlm_dict, spi, io):
+    def __init__(self, idx, smbdb, dacs):
         self.logger = logging.getLogger('heaters')
         self.logger.setLevel(logging.INFO)
         self.db = smbdb
 
-        self.spi = spi
-        self.io = io
-        
+        self.dacs = dacs
+
+        self._dac_idx = idx
         self._heater_num = idx + 1
 
         self._maxCurrent = 0.024
@@ -40,9 +38,7 @@ class PidHeater(object):
         self._heater_mode = self.LOOP_MODE_IDLE
         self._heater_ctrl_sensor = 0
         self._heater_set_pt = 0.0
-        self.tlm_dict = tlm_dict
         self.last_pv = 0.0  # last process variable
-        self.mv_i = 0.0  # prescaled integration sum
         self.mv_min = 0.0
         self.mv_max = 5000.0
 
@@ -62,23 +58,19 @@ class PidHeater(object):
         self.config_heater_params()
 
     def connectDAC(self):
-        idx = self._heater_num - 1
-        with Gbl.ioLock:
-            restart = hasattr(self, 'dac')
-            self.logger.info('htr %d: connecting DAC (restart %s, mode %d, current %0.4f)', 
-                             self._heater_num, restart, 
-                             self.heater_mode, self.heater_current)
-            if restart:
-                self.dac.dac_write_register('reset', rst=1)
-                del self.dac
-                self.io.dac_reset(idx)
-                time.sleep(0.1)
-            self.dac = DAC(idx, self.db, self.spi, self.io, doReset=restart)
+        restart = hasattr(self, 'dac')
+        self.logger.info('htr %d: connecting DAC (restart %s, mode %d, current %0.4f)',
+                         self._heater_num, restart,
+                         self.heater_mode, self.heater_current)
+        if restart:
+            self.dac.dac_write_register('reset', reset=1)
+            del self.dac
+        self.dac = DAC(self._dac_idx, self.db, self.dacs)
 
-            if restart:
-                self.set_htr_mode(self.heater_mode)
-                if self.heater_mode == self.LOOP_MODE_POWER:
-                    self.htr_set_heater_current(self.heater_current)
+        if restart:
+            self.set_htr_mode(self.heater_mode)
+            if self.heater_mode == self.LOOP_MODE_POWER:
+                self.htr_set_heater_current(self.heater_current)
         
     def __str__(self):
         configList = ["%s=%s" % (k,v) for k,v in self.loopConfig.items()]
@@ -174,9 +166,6 @@ class PidHeater(object):
         elif mode == self.LOOP_MODE_POWER:
             self.htr_enable_heater_current(True)
             self.heater_mode = self.LOOP_MODE_POWER
-        elif mode == self.LOOP_MODE_SIMPLE_PID:
-            self.htr_enable_heater_current(True)
-            self.heater_mode = self.LOOP_MODE_SIMPLE_PID
         elif mode == self.LOOP_MODE_PID:
             self.validate_loop_params() # Will raise exception on failure.
             self.htr_enable_heater_current(True)
@@ -236,54 +225,13 @@ class PidHeater(object):
         self.logger.debug('htr %d: current=%0.4f base=0x%04x residual=%d',
                           self._heater_num, current, baseRequest, residualRequest)
         with Gbl.ioLock:
-            self.update_one_dac('a', baseRequest + (residualRequest > 0))
-            self.update_one_dac('b', baseRequest + (residualRequest > 1))
-            self.update_one_dac('c', baseRequest + (residualRequest > 2))
-            self.update_one_dac('d', baseRequest)
+            self.dacs.writeDacData(self._dac_idx, 'a', baseRequest + (residualRequest > 0))
+            self.dacs.writeDacData(self._dac_idx, 'b', baseRequest + (residualRequest > 1))
+            self.dacs.writeDacData(self._dac_idx, 'c', baseRequest + (residualRequest > 2))
+            self.dacs.writeDacData(self._dac_idx, 'd', baseRequest)
             self._heater_current = current
 
         quieres.db_update_htr_params(self.db, current, 'htr_current', self._heater_num)
-
-    def set_all_currents_to_zero(self):
-        with Gbl.ioLock:
-            self.dac.select_dac('all')
-            self.dac.dac_write_dac_data_reg(0x0000)
-            self.dac.select_dac('none')
-
-    def update_one_dac(self, dac, value):
-        with Gbl.ioLock:
-            self.dac.select_dac(dac)
-            self.dac.dac_write_dac_data_reg(value)
-
-            self.dac.select_dac(dac)
-            check = self.dac.dac_read_dac_data_reg()
-
-        if value != check:
-            self.logger.warn('DAC readback failed. expected 0x%04x, got 0x%04x',
-                             value, check)
-            
-        self.dac.dac_check_status()
-            
-    def pid_bounds_check(self, value):
-        if value > self.mv_max:
-            return self.mv_max
-
-        elif value < self.mv_min:
-            return self.mv_min
-        else:
-            return value
-
-    def simple_loop(self, pv):
-        error = self._heater_set_pt - pv
-
-        # Decay integrated offset
-        self.mv_i += self._heater_i_term * error
-        self.mv_i = self.pid_bounds_check(self.mv_i)
-
-        mv = (self._heater_p_term * error) + self.mv_i + (self._heater_d_term * (self.last_pv - pv))
-        self.last_pv = pv
-
-        return self.pid_bounds_check(mv)
 
     def validate_loop_params(self):
         """Check whether we can run a non-simple loop. Raises exception on failure. """
@@ -377,11 +325,6 @@ class PidHeater(object):
         sensor = 'rtd%d' % (self.heater_ctrl_sensor)
         pv = Gbl.telemetry[sensor]
 
-        # Leave existing SMB loop unchanged.
-        if self.heater_mode == self.LOOP_MODE_SIMPLE_PID:
-            self.simple_loop(pv)
-            return
-
         delta = pv - self._heater_set_pt
 
         if self.heater_mode != self.LOOP_MODE_PID:
@@ -435,23 +378,38 @@ class PidHeater(object):
     def connect(self):
         self.connectDAC()
 
-    def readReg(self, *, name=None):
+    def readReg(self, *, name=None, cnt=1):
         lev = self.dac.logger.level
         self.dac.logger.setLevel(10)
-        ret = self.dac.dac_read_register(name)
+        last = None
+        for i in range(cnt):
+            ret = self.dac.dac_read_register(name)
+            self.logger.debug('readReg %d/%d name=%s returned %s' % (i+1, cnt, name, ret))
+            if last is None:
+                last = ret
+            if ret != last:
+                self.logger.warn('readReg %d/%d DIFFERED' % (i+1, cnt))
+            last = ret
+
         self.dac.logger.setLevel(lev)
-        self.logger.debug('readReg name=%s returned %s' % (name, ret))
         return str(ret)
 
-    def writeReg(self, *, regName=None, name=None, value=None):
+    def writeReg(self, *, name=None, field=None, value=None):
         lev = self.dac.logger.level
         self.dac.logger.setLevel(10)
-        kwArgs = dict(name=value)
-        self.dac.dac_write_register(regName, **kwArgs)
+        kwArgs = {field:value}
+        self.dac.dac_write_register(name, **kwArgs)
         self.dac.logger.setLevel(lev)
 
-        ret = self.dac.dac_read_register(regName)
-        return ret
+        ret = self.dac.dac_read_register(name)
+        return str(ret)
+
+    def writeRaw(self, num, value):
+        lev = self.dac.logger.level
+        self.dac.logger.setLevel(10)
+        ret = self.dac.dac_write_raw(num, value)
+        self.dac.logger.setLevel(lev)
+        return str(ret)
 
     def status(self, *, full=False):
         ret = 'mode=%s sensor=%d setpoint=%0.4f output=%0.4f' % (self.heater_mode,

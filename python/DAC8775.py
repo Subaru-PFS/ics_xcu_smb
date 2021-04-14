@@ -3,8 +3,6 @@ import time
 
 from utilities import getbytes_from_reg_bits
 import quieres
-from spi_bus import DacSpi
-
 import Gbl
 
 class DAC(object):
@@ -12,157 +10,66 @@ class DAC(object):
     DAC8775 object. There are two of these on one heater board
     """
 
-    # <editor-fold desc="******************* Public Methods *******************">
-
-    def __init__(self, idx, smbdb, spi, io, doReset=False):
+    def __init__(self, idx, smbdb, dacs, doReset=False):
         self.logger = logging.getLogger('heaters')
+        self.logger.setLevel(logging.INFO)
         self.db = smbdb
         self.idx = idx
         self.dac_num = idx + 1
-        self.RegAddrs = []
-        self._DUMMY_BYTE = 0x00
-        self._READ_FLAG = 0x80
-        self._LOW = bool(0)
-        self._HIGH = bool(1)
-        # self.spi_obj = spi_bus.RPi3Spi(1, mode=0, cs_id=0, max_speed_hz=1000)
+        self.dacs = dacs
 
-        self.spi_obj = DacSpi(self.idx, io)
-        self.pins = io
         self.__dac_initialize(doReset=doReset)
 
-    def dac_write_register(self, regname, **kwargs):
-
+    def dac_register_value(self, regname, **kwargs):
         reg_dict = quieres.db_dac_register_data_to_dictionary(self.db, regname, self.dac_num)
-        write_bytes = getbytes_from_reg_bits(kwargs, reg_dict)
 
-        regid = self.__search_reg_address_from_name(regname)
-        rbytes = write_bytes.to_bytes((write_bytes.bit_length() + 7) // 8, byteorder='big')
-        bytelist = [regid]
-        for val in rbytes:
-            bytelist.append(val)
-        while len(bytelist) < 3:
-            bytelist.insert(1, self._DUMMY_BYTE)
+        if 'register' in kwargs:
+            del kwargs['register']
 
-        with Gbl.ioLock:
-            self.spi_obj.xfer(bytelist)
-        self.logger.debug('heater %d wrote reg %s/%d = 0x%04x/%d (%s)',
-                          self.idx, regname, regid,
-                          write_bytes, write_bytes,
-                          kwargs)
+        newValue = getbytes_from_reg_bits(kwargs, reg_dict)
+        return newValue
 
-    def dac_read_register(self, reg_name):
-        data_24 = [0, 0, 0]
-        regid = self.__search_reg_address_from_name(reg_name)
-        regid |= self._READ_FLAG
-        byte_list = [regid, self._DUMMY_BYTE, self._DUMMY_BYTE]
-
-        with Gbl.ioLock:
-            self.spi_obj.xfer(byte_list)
-            byte_list = [0, 0, 0]
-            data_24 = self.spi_obj.xfer(byte_list)
-        data_24.pop(0)
-
-        value = int.from_bytes(data_24, byteorder='big', signed=False)
-        reg_bit_data = quieres.db_dac_register_data_to_dictionary(self.db, reg_name, self.dac_num)
+    def dac_value_dictionary(self, regname, value):
+        reg_bit_data = quieres.db_dac_register_data_to_dictionary(self.db, regname, self.dac_num)
         dict_register = dict()
-        dict_register['register'] = '0x%04x' % (value)
+        dict_register['register'] = value
         for item in reg_bit_data:
             keyname = item['NAME']
             dataval = (value >> item['SHIFT']) & item['MASK']
             dict_register[keyname] = dataval
+        return dict_register
 
-        self.logger.debug('heater %d read reg %s/%d = 0x%04x/%d (%s)',
-                          self.idx, reg_name, (regid & ~self._READ_FLAG),
+    def dac_write_register(self, regname, **kwargs):
+        newValue = self.dac_register_value(regname, **kwargs)
+
+        self.dacs.writeReg(self.idx, regname, newValue)
+        self.logger.debug('heater %d wrote reg %s = 0x%04x/%d (%s)',
+                          self.idx, regname,
+                          newValue, newValue,
+                          kwargs)
+        return newValue
+
+    def dac_read_register(self, regname):
+        value = self.dacs.readReg(self.idx, regname)
+        dict_register =  self.dac_value_dictionary(regname, value)
+
+        self.logger.debug('heater %d read reg %s = 0x%04x/%d (%s)',
+                          self.idx, regname,
                           value, value,
                           dict_register)
         return dict_register
 
-    def select_dac(self, dac='none'):
-        dac = dac.lower()
-
+    def dac_write_raw(self, regnum, value):
         with Gbl.ioLock:
-            dict_sel_dac_reg = self.dac_read_register('select_dac')
-            if dac == 'a':
-                dict_sel_dac_reg['cha'] = True
-                dict_sel_dac_reg['chb'] = False
-                dict_sel_dac_reg['chc'] = False
-                dict_sel_dac_reg['chd'] = False
-            elif dac == 'b':
-                dict_sel_dac_reg['cha'] = False
-                dict_sel_dac_reg['chb'] = True
-                dict_sel_dac_reg['chc'] = False
-                dict_sel_dac_reg['chd'] = False
-            elif dac == 'c':
-                dict_sel_dac_reg['cha'] = False
-                dict_sel_dac_reg['chb'] = False
-                dict_sel_dac_reg['chc'] = True
-                dict_sel_dac_reg['chd'] = False
-            elif dac == 'd':
-                dict_sel_dac_reg['cha'] = False
-                dict_sel_dac_reg['chb'] = False
-                dict_sel_dac_reg['chc'] = False
-                dict_sel_dac_reg['chd'] = True
-            elif dac == 'all':
-                dict_sel_dac_reg['cha'] = True
-                dict_sel_dac_reg['chb'] = True
-                dict_sel_dac_reg['chc'] = True
-                dict_sel_dac_reg['chd'] = True
-            else:
-                dict_sel_dac_reg['cha'] = False
-                dict_sel_dac_reg['chb'] = False
-                dict_sel_dac_reg['chc'] = False
-                dict_sel_dac_reg['chd'] = False
-            self.dac_write_register('select_dac', **dict_sel_dac_reg)
-        self.logger.debug('selected DAC %s' % (dac))
-        
-    def dac_write_dac_data_reg(self, value):
-        """ Write a DAC data value.
+            self.dacs.writeReg(self.idx, regnum, value)
+            checkValue = self.dacs.readReg(self.idx, regnum)
 
-        Args
-        ----
-        value : int 
-          Must be 0...0xffff. Clipped to that.
+        self.logger.debug('heater %d wrote reg %d=0x%04x, read=0x%04x',
+                          self.idx, regnum,
+                          value, checkValue)
+        return checkValue
 
-        """
-
-        if value < 0:
-            self.logger.warn('clipping heater %d request %s up to 0', self.idx, value)
-            value = 0
-        if value > 0xffff:
-            self.logger.warn('clipping heater %d request %s down to 0xffff', self.idx, value)
-            value = 0xffff
-
-        regid = self.__search_reg_address_from_name('DAC_data')
-        rbytes = value.to_bytes(2, byteorder='big')
-        bytelist = bytearray([regid])
-        bytelist.extend(rbytes)
-
-        with Gbl.ioLock:
-            self.spi_obj.xfer(bytelist)
-        self.logger.debug('htr %d: wrote data reg: 0x%04x, %s', self.idx,
-                          value, ','.join(['0x%02x'%b for b in bytelist]))
-
-    def dac_read_dac_data_reg(self):
-
-        regid = self.__search_reg_address_from_name('DAC_data')
-        regid |= self._READ_FLAG
-        byte_list = [regid, self._DUMMY_BYTE, self._DUMMY_BYTE]
-
-        with Gbl.ioLock:
-            self.spi_obj.xfer(byte_list)
-            regid = self.__search_reg_address_from_name('no_operation')
-            regid |= self._READ_FLAG
-            byte_list = [regid, self._DUMMY_BYTE, self._DUMMY_BYTE]
-            data_24 = self.spi_obj.xfer(byte_list)
-        data_24.pop(0)
-        dacdata = int.from_bytes(data_24, byteorder='big', signed=False)
-
-        self.logger.debug('htr %d: read data reg: 0x%04x, %s', self.idx,
-                          dacdata, ','.join(['0x%02x'%b for b in data_24]))
-        
-        return dacdata
-
-    def dac_check_status(self):
+    def dac_check_status(self, badOnly=False):
         retries = 2
         doReset = dict()
         while retries > 0:
@@ -175,9 +82,10 @@ class DAC(object):
                 if status[b]:
                     self.logger.warn('htr %d error: %s is set', self.idx, b)
                     doReset[b] = 1
-            for b in goodBits:
-                if not status[b]:
-                    self.logger.warn('htr %d error: %s is not set', self.idx, b)
+            if not badOnly:
+                for b in goodBits:
+                    if not status[b]:
+                        self.logger.warn('htr %d error: %s is not set', self.idx, b)
 
             if doReset and retries > 0:
                 self.dac_write_register('status', **doReset)
@@ -185,72 +93,57 @@ class DAC(object):
             else:
                 retries = 0
             
-    # def dac_aliveness_check(self):
-    #     self.dac_write_register('reset_config', 'tblDacResetConfigReg',
-    #                             ubt=True, poc=False, clr=False, trn=False, ref_en=False,
-    #                             clrena=False, clrenb=False, clrenc=False, clrend=False)
-    #     reg_dict = self.dac_read_register('status', 'tblDacStatusReg')
-    #     okay = bool(reg_dict['err'])
-    #     return okay
+    def _initialize_one_register(self, registerName, **config):
+        self.logger.info("htr %d initializing %s: %s", self.idx, registerName, config)
+        wrote = self.dac_write_register(registerName, **config)
+        readBack = self.dac_read_register(registerName)
 
-    # </editor-fold>
+        ok = True
+        for k,v in config.items():
+            if v != readBack[k]:
+                ok = False
+        if not ok:
+            self.logger.warning("MISMATCH on htr %d %s wrote 0x%04x %s",
+                                self.idx, registerName, wrote, config)
+            self.logger.warning("MISMATCH on htr %d %s read  0x%04x %s",
+                                self.idx, registerName, readBack['register'], readBack)
+        else:
+            self.logger.info("htr %d %s: %s", self.idx, registerName, readBack)
 
-    # <editor-fold desc="******************* Private Methods *******************">
-
-    def __dac_initialize(self, doReset=False):
+    def __dac_initialize(self, doReset=True):
         """ Reset the DAC """
-        self.RegAddrs = quieres.db_table_data_to_dictionary(self.db,'tblDacRegisters')
 
         with Gbl.ioLock:
             if doReset:
-                # write reset reg
-                self.dac_write_register('reset', rst=1)
+                # software reset sets all registers to 0.
+                self.dac_write_register('reset', reset=1)
                 self.logger.warning("htr %d reset", self.idx)
+                time.sleep(0.01)
 
-            # write reset config reg (use external reference).
-            reset_config_dict = quieres.db_dac_fetch_names_n_values(self.db,'reset_config', self.dac_num)
-            self.dac_write_register('reset_config', **reset_config_dict)
-            resetconfig = self.dac_read_register('reset_config')
-            # if reset_config_dict != resetconfig:
-            self.logger.info("htr %d reset_config: %s", self.idx, resetconfig)
+            # Need to revisit this list and sequence -- CPL.
+            for regName in ('select_dac', 'reset_config',
+                            'Select_Buck_Boost_converter',
+                            'configuration_Buck_Boost_converter',
+                            'configuration_dac'):
+                if regName == 'select_dac':
+                    config_dict = dict(dsdo=1, cha=1, chb=1, chc=1, chd=1)
+                elif regName == 'reset_config':
+                    config_dict = dict(clrena=1, clrenb=1, clrenc=1, clrend=1)
+                elif regName == 'Select_Buck_Boost_converter':
+                    config_dict = dict(dca=1, dcb=1, dcc=1, dcd=1)
+                elif regName == 'configuration_Buck_Boost_converter':
+                    config_dict = dict(pnsel=1)
+                # elif regName == 'configuration_dac':
+                #     config_dict = dict()
+                else:
+                    config_dict = quieres.db_dac_fetch_names_n_values(self.db, regName, self.dac_num)
+                self._initialize_one_register(regName, **config_dict)
 
-            # Write Select Buck Boost Register (Select A,B,C & D).
-            buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'Select_Buck_Boost_converter', self.dac_num)
-            self.dac_write_register('Select_Buck_Boost_converter', **buck_boost_dict)
-            buckboostsel = self.dac_read_register('Select_Buck_Boost_converter')
-            self.logger.info("htr %d select_buck_boost: %s", self.idx, buckboostsel)
+            # Initialize DAC
+            self.dacs.writeDacData(self.idx, 'all', 0)
 
-            # Write Config Buck-Boost reg.
-            cfg_buck_boost_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_Buck_Boost_converter', self.dac_num)
-            self.dac_write_register('configuration_Buck_Boost_converter', **cfg_buck_boost_dict)
-            buckboostconfig = self.dac_read_register('configuration_Buck_Boost_converter')
-            self.logger.info("htr %d config_buck_boost: %s", self.idx, buckboostconfig)
+            # Check DAC output levels
+            dacdata = [self.dacs.readDacData(self.idx, i) for i in 'abcd']
+            self.logger.info("htr %d dac values = %s", self.idx, dacdata)
 
-            # Write Select DAC Register.
-            sel_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'select_dac', self.dac_num)
-            self.dac_write_register('select_dac', **sel_dac_dict)
-            dacsel = self.dac_read_register('select_dac')
-            self.logger.info("htr %d select_dac: %s", self.idx, dacsel)
-
-            # Write Config Dac Register.
-            cfg_dac_dict = quieres.db_dac_fetch_names_n_values(self.db, 'configuration_dac', self.dac_num)
-            self.dac_write_register('configuration_dac', **cfg_dac_dict)
-            daccnfg = self.dac_read_register('configuration_dac')
-            self.logger.info("htr %d config_dac: %s", self.idx, daccnfg)
-
-            # Write Program DAC Data.
-            self.dac_write_dac_data_reg(0x0000)
-            # Read Config Dac Register.
-            dacdata = self.dac_read_dac_data_reg()
-            self.logger.info("htr %d dac value = 0x04%x", self.idx, dacdata)
-
-            
-
-    def __search_reg_address_from_name(self, name):
-        for a in self.RegAddrs:
-            if a['NAME'] == name:
-                return a['ADDRESS']
-
-        return -1
-
-    # </editor-fold>
+            self.dac_check_status(badOnly=True)

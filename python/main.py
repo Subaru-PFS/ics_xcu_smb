@@ -4,7 +4,6 @@ import queue
 import sys
 import time
 
-import RPi.GPIO as GPIO
 import spidev
 
 import ADS1015
@@ -13,12 +12,12 @@ import Gbl
 from AD7124 import AD7124 as ad7124
 from BangBang import bang_bang as bb
 from SmbGuiWindow import MainWindow
-from heaters import PidHeater
-from spi_bus import DacSpi
+import heaterDacs
+import heaters
 import cmd_loop
 from sensor_loop import SensorThread
 from tcpip import TcpServer
-import quieres
+import topcmds
 
 from PyQt5 import QtWidgets
 import PyQt5.QtSql as qtSql
@@ -41,7 +40,8 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
     """
     
     logging.basicConfig(datefmt = "%Y-%m-%d %H:%M:%S",
-                        format = "%(asctime)s.%(msecs)03dZ %(name)-10s %(levelno)s %(filename)s:%(lineno)d %(message)s")
+                        format = "%(asctime)s.%(msecs)03dZ %(name)-10s %(levelno)s %(filename)s:%(lineno)d %(message)s",
+                        level=logging.DEBUG)
     
     logger = logging.getLogger('smb')
     logger.setLevel(logLevel)
@@ -64,18 +64,17 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
     qcmd.empty()
 
     tlm = Gbl.telemetry
-    # create IO object
-    io = GPIO_config.io()
-    # reset both DACs
-    io.dac_reset(0)
-    time.sleep(.001)
-    io.dac_reset(1)
-    time.sleep(.001)
 
-    io.dac_bank_sel(1)
+    # create GPIO object
+    Gbl.gpio = gpio = GPIO_config.Gpio()
+
+    # Create DAC objects.
+    dacs = heaterDacs.HeaterDacs(gpio)
+    dacs.reset()
+    Gbl.heaters = [heaters.PidHeater(i, smbdb, dacs) for i in range(2)]
 
     # Create SPI Bus object
-    spi = spidev.SpiDev()  # create spi object
+    Gbl.spi = spi = spidev.SpiDev()  # create spi object
     spi_id = 0
     cs_id = 0
     spi.open(spi_id, cs_id)
@@ -83,25 +82,19 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
     spi.mode = 3
     spi.cshigh = True
 
-    # Create DAC objects.
-    heaters = [PidHeater(i, smbdb, tlm, spi, io) for i in range(2)]
-
     # Create ADC objects.
-    adcs = [ad7124(i, smbdb, tlm, spi, io) for i in range(12)]
+    Gbl.adcs = adcs = [ad7124(i, smbdb, tlm, spi, gpio) for i in range(12)]
 
     # Create ADS1015 object
     ads1015 = ADS1015.ADS1015(smbdb)
 
     # Create Bang-Bang heater objects
-    bang_bangs = [bb(i, io) for i in range(2)]
+    bang_bangs = [bb(i, gpio) for i in range(2)]
 
-#    for h in heaters:
-#        h.logger.setLevel(logging.DEBUG)
-        
     # Get data, service PID etc.
     # Once this is started, all access to io resources (GPIO, I2C, SPI) must use Gbl.ioLock
     #
-    sensorThread = SensorThread(smbdb, tlm, bang_bangs, adcs, heaters, ads1015,
+    sensorThread = SensorThread(smbdb, tlm, bang_bangs, adcs, Gbl.heaters, ads1015,
                                 sensorPeriod=sensorPeriod)
     sensorThread.start()
 
@@ -109,14 +102,13 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
     t1 = TcpServer(smbdb, qcmd, qxmit)
     t1.start()
 
-    
-    cmdThread = cmd_loop.CmdLoop(smbdb, tlm, bang_bangs, adcs, heaters, ads1015,
+    cmdThread = cmd_loop.CmdLoop(smbdb, tlm, bang_bangs, adcs, Gbl.heaters, ads1015,
                                  qcmd, qxmit)
     cmdThread.start()
 
     if doGUI:
         app = QtWidgets.QApplication(sys.argv)
-        main_window = MainWindow(smbdb, bang_bangs, adcs, heaters, ads1015, qcmd)
+        main_window = MainWindow(smbdb, bang_bangs, adcs, Gbl.heaters, ads1015, qcmd)
         main_window.show()
 
         app.exec_()
@@ -132,10 +124,11 @@ def runSmb(dbPath=None, logLevel=logging.INFO, dbLogLevel=logging.WARN,
             logger.warning('exiting main program due to: %s', e)
 
     cmdThread.pleaseExit()
+    cmdThread.join()
+
     sensorThread.pleaseExit()
     sensorThread.join()
-    cmdThread.join()
-    
+
     # There is an atexit handler to reset the GPIO configuration.
     
     
