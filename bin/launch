@@ -1,6 +1,11 @@
 now=`date +"%Y-%m-%dT%H:%M:%S"`
 cd /db/ics_xcu_SMB
 nohup python3 python/main.py "$@" >& /db/smb-$now.log &
-sleep 2
-echo $!
-sudo chrt --all --verbose -p $!
+SMB_PID=$!
+
+echo $SMB_PID > /run/user/$(id -u)/smb.pid
+
+# Let the threads start; give them all SCHED_FIFO. We actually only need to
+# set the one thread, but I do not know which it is, and no threads spin.
+#
+(sleep 5; sudo chrt --all-tasks --fifo --verbose -p 1 $SMB_PID)
