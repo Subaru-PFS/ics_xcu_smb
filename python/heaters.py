@@ -47,8 +47,8 @@ class PidHeater(object):
         self.loopConfig = dict(P=1.0, I=1.0, offset=0.0,
                                rho=None, tau=None, tint=None, R=None,
                                lastSum=0.0,
-                               maxTempRate=5.0/60,
-                               failsafePower=40.0)
+                               maxTempRate=1/2.0,
+                               failsafePower=60.0)
 
         # We want to support tweaking the loop while it is running.
         # Try to do that safely.
