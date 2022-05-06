@@ -319,6 +319,17 @@ class PidHeater(object):
         adcs : all the new readings, in K.
         """
 
+        if self.heater_mode == self.LOOP_MODE_POWER:
+            self.htr_set_heater_current(self.heater_current)
+            return
+
+        if self.heater_mode == self.LOOP_MODE_IDLE:
+            self.htr_set_heater_current(0.0)
+            return
+
+        if self.heater_mode != self.LOOP_MODE_PID:
+            return
+
         if self.heater_ctrl_sensor == 0:
             return
 
