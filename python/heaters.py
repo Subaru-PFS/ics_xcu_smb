@@ -325,10 +325,18 @@ class PidHeater(object):
         sensor = 'rtd%d' % (self.heater_ctrl_sensor)
         pv = Gbl.telemetry[sensor]
 
+        # Taper slew to our temperature change rate limit
         delta = pv - self._heater_set_pt
-
-        if self.heater_mode != self.LOOP_MODE_PID:
-            return
+        maxTempRate = self.loopConfig['maxTempRate']
+        maxTempRatePerSample = (maxTempRate/60.0)*loopPeriod
+        if abs(delta) > maxTempRatePerSample:
+            trimmedDelta = np.sign(delta) * maxTempRatePerSample
+            self.logger.debug('trimming update from %0.4f K/min '
+                              'to %0.4f K/min (%0.4f K/loop at loop period=%0.2f) (%0.4f to %0.4f)',
+                              delta/loopPeriod*60, maxTempRate,
+                              maxTempRatePerSample, loopPeriod,
+                              delta, trimmedDelta)
+            delta = trimmedDelta
 
         if self.last_pv is not None and self.last_pv > 0:
             tempRate = abs(pv - self.last_pv) / loopPeriod * 60
