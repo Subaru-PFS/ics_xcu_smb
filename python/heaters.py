@@ -30,7 +30,7 @@ class PidHeater(object):
         self._maxCurrent = 0.024
         self.maxTotalCurrent = 0.096
         self.currentLimit = self.maxTotalCurrent
-        
+
         self._heater_p_term = 1.0
         self._heater_i_term = 1.0
         self._heater_d_term = 0.0
@@ -41,6 +41,8 @@ class PidHeater(object):
         self.last_pv = 0.0  # last process variable
         self.mv_min = 0.0
         self.mv_max = 5000.0
+        self.safetyMode = False
+        self.traceMask = 0
 
         # There is a newer loop implementation which uses physical parameters and 
         # which is controlled entirely by the external caller. 
@@ -48,7 +50,10 @@ class PidHeater(object):
                                rho=None, tau=None, tint=None, R=None,
                                lastSum=0.0,
                                maxTempRate=1/2.0,
-                               failsafePower=60.0)
+                               failsafeFraction=0.5,
+                               trace=0,
+                               sensor=None,
+                               safetyBand=2.0, safetySensors=None)
 
         # We want to support tweaking the loop while it is running.
         # Try to do that safely.
@@ -135,8 +140,9 @@ class PidHeater(object):
     def heater_mode(self, value):
         if value < 0 or value > self.LOOP_MODE_PID:
             raise ValueError("Heater Mode value out of range")
-        self.logger.info('htr %d: setting loop mode from %s to %s', 
-                         self._heater_num, self._heater_mode, value)
+        if value != self._heater_mode:
+            self.logger.info('htr %d: setting loop mode from %s to %s',
+                             self._heater_num, self._heater_mode, value)
         self._heater_mode = value
 
     @property
@@ -237,7 +243,7 @@ class PidHeater(object):
         """Check whether we can run a non-simple loop. Raises exception on failure. """
 
         cfg = self.loopConfig
-        for k in 'rho', 'tau', 'tint', 'R', 'maxTempRate', 'failsafePower':
+        for k in 'rho', 'tau', 'tint', 'R', 'maxTempRate', 'failsafeFraction':
             if cfg[k] is None:
                 raise RuntimeError('htr %d: heater physical parameter %s has not been set' % 
                                    (self._heater_num, k))
@@ -278,7 +284,7 @@ class PidHeater(object):
             P_i = -A*delta - B*sum + cfg['offset']
             if P_i < 0:
                 P_i = 0
-                
+
             # Convert power to current
             I_i = np.sqrt(P_i / cfg['R'])
 
@@ -314,14 +320,76 @@ class PidHeater(object):
 
         if self.heater_mode == self.LOOP_MODE_PID:
             self.htr_set_heater_current(I_i)
-            
+
+    def sensorVal(self, sensorNum):
+        """Return the value for a given sensor. """
+
+        sensorName = 'rtd%d' % (sensorNum)
+        pv = Gbl.telemetry[sensorName]
+        return pv
+
+    def heaterSensorVal(self):
+        """Return the value of the sensor we use for the heater loop."""
+        return self.sensorVal(self.heater_ctrl_sensor)
+
+    def getSafetyTemp(self):
+        """Calculate the temperature we want to be higher than.
+
+        If we have cfg.safetySensors, take the minimum of those. But reject any 0/400/nans.
+        Then add our cfg.safetyBand.
+
+        If there are no defined safetySensors, use all valid ones.
+
+        If there is no safetyBand, return 0.
+
+        """
+
+        sensors = self.loopConfig['safetySensors']
+        band = self.loopConfig['safetyBand']
+
+        if band <= 0:
+            return 0.0
+
+        if not sensors:
+            sensors = range(1, 13)
+
+        minTemp = 273.0
+        for s in sensors:
+            temp = self.sensorVal(s)
+            if s == self.heater_ctrl_sensor or np.isnan(temp) or temp <= 0 or temp >= 400:
+                continue
+            if temp < minTemp:
+                minTemp = temp
+        minTemp += band
+
+        return minTemp
+
     def updateControlLoop(self, adcs, loopPeriod):
         """Handle updated temperature sensor readings.
-      
+
         Args
         ----
         adcs : all the new readings, in K.
         """
+
+        if self.heater_ctrl_sensor > 0:
+            pv = self.heaterSensorVal()
+            setPoint = self._heater_set_pt
+            minTemp = self.getSafetyTemp()
+
+            if pv < minTemp:
+                if not self.safetyMode:
+                    self.logger.warning('safety temp breached (%s < %s), '
+                                        'overriding PID setpoint from %0.3f to %0.3f',
+                                        pv, minTemp, setPoint, minTemp)
+                self.safetyMode = True
+                setPoint = minTemp
+                self.set_htr_mode(self.LOOP_MODE_PID)
+            else:
+                if self.safetyMode:
+                    self.logger.info('safety mode retired with (%0.3f >= %0.3f)',
+                                     pv, minTemp)
+                self.safetyMode = False
 
         if self.heater_mode == self.LOOP_MODE_POWER:
             self.htr_set_heater_current(self.heater_current)
@@ -334,14 +402,10 @@ class PidHeater(object):
         if self.heater_mode != self.LOOP_MODE_PID:
             return
 
-        if self.heater_ctrl_sensor == 0:
-            return
-
-        sensor = 'rtd%d' % (self.heater_ctrl_sensor)
-        pv = Gbl.telemetry[sensor]
+        pv = self.heaterSensorVal()
 
         # Taper slew to our temperature change rate limit
-        delta = pv - self._heater_set_pt
+        delta = pv - setPoint
         maxTempRate = self.loopConfig['maxTempRate']
         maxTempRatePerSample = (maxTempRate/60.0)*loopPeriod
         if abs(delta) > maxTempRatePerSample:
@@ -443,19 +507,22 @@ class PidHeater(object):
             cfg = self.loopConfig
             ret2 = 'P=%d I=%d' % (cfg['P'], cfg['I'])
             ret3 = ('rho=%0.2f tau=%0.2f R=%0.2f tint=%0.2f '
-                    'maxCurrent=%0.3f failsafeFraction=%0.2f maxTempRate=%0.2f' % (cfg['rho'],
-                                                                                   cfg['tau'],
-                                                                                   cfg['R'],
-                                                                                   cfg['tint'],
-                                                                                   self.currentLimit,
-                                                                                   cfg['failsafeFraction'],
-                                                                                   cfg['maxTempRate']))
+                    'maxCurrent=%0.3f failsafeFraction=%0.2f maxTempRate=%0.2f '
+                    'safetyBand=%0.1f safetySensors=%s'% (cfg['rho'],
+                                                          cfg['tau'],
+                                                          cfg['R'],
+                                                          cfg['tint'],
+                                                          self.currentLimit,
+                                                          cfg['failsafeFraction'],
+                                                          cfg['maxTempRate'],
+                                                          cfg['safetyBand'], cfg['safetySensors']))
             ret = '%s %s %s' % (ret, ret2, ret3)
 
         return ret
 
     def configure(self, *, on=None,
                   setpoint=None,
+                  power=None,
                   trace=None,
                   P=None, I=None,
                   offset=None,
@@ -465,6 +532,7 @@ class PidHeater(object):
                   maxCurrent=None,
                   maxTempRate=None,
                   failsafeFraction=None,
+                  safetyBand=None, safetySensors=None,
                   loopCount=1):
         """Reconfigure heater loop based on command options.
 
@@ -474,6 +542,8 @@ class PidHeater(object):
             Whether loop should be on
         setpoint : float
             Temperature, in K, to servo to.
+        power : float
+            Power fraction, 0..1, to set the outputs to.
         trace : int, optional
             Mask of diagnostic output
         P : int
@@ -499,12 +569,16 @@ class PidHeater(object):
             If we trip the temp rate, what current to then drive at.
         loopCount : int
             Number of measurement loop samples to skip between corrections
+        safetySensors : list of ints
+            The sensors to use for calculating our minimum temperature.
+        safetyBand : float
+            How much warmer do we want to be than the safetySensors
         """
 
         self.logger.info('htr %d: configuring with %s', self._heater_num, locals())
-        
+
         cfg = self.loopConfig
-        
+
         if on is False:
             self.set_htr_mode(self.LOOP_MODE_IDLE)
             self.last_pv = 0.0
@@ -513,25 +587,29 @@ class PidHeater(object):
         # sure to remember to enable the loop if so.
         if self.heater_mode == self.LOOP_MODE_PID:
             on = True
-            
+
         if sensor is not None:
             if sensor < 0 or sensor > 12:
                 raise RuntimeError('sensor must be 0..12')
-            
+
             # shutdown any loop with a different sensor
             if sensor != self.heater_ctrl_sensor:
                 self.set_htr_mode(self.LOOP_MODE_IDLE)
                 self.last_pv = 0.0
             self.heater_ctrl_sensor = sensor
 
-        if trace is not None:
-            self.traceMask = trace
+        if trace is None:
+            trace = 0
+        self.traceMask = trace
 
         with self.configLock:
             self.impulse(0, 0)
-               
+
             if setpoint is not None:
                 self._heater_set_pt = setpoint
+            if power is not None:
+                if power < 0 or power > 1.0:
+                    raise RuntimeError('power must be 0.0..1.0')
             if P is not None:
                 cfg['P'] = P
             if I is not None:
@@ -550,6 +628,10 @@ class PidHeater(object):
                 self.currentLimit = maxCurrent
             if maxTempRate is not None:
                 cfg['maxTempRate'] = maxTempRate
+            if safetySensors is not None:
+                cfg['safetySensors'] = safetySensors
+            if safetyBand is not None:
+                cfg['safetyBand'] = safetyBand
             if failsafeFraction is not None:
                 if failsafeFraction > 100:
                     failsafeFraction = self.failsafeFraction
@@ -557,5 +639,8 @@ class PidHeater(object):
         if on:
             self.last_pv = 0.0
             self.set_htr_mode(self.LOOP_MODE_PID) # Will throw up on config error.
+        elif power is not None:
+            self.htr_set_heater_fraction(power)
+            self.set_htr_mode(self.LOOP_MODE_POWER) # Will throw up on config error.
 
         return self.status(full=True)

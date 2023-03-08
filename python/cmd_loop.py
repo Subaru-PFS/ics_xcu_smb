@@ -54,7 +54,16 @@ def nonNegativeFloat(s):
     if f < 0:
         raise CmdException('could not parse %s as a non-negative float value' % (s))
 
-    return f        
+    return f
+
+def listOfIntegers(s):
+    """Parse a list of comma-joined integers. """
+
+    parts = s.split(',')
+    ints = [integer(p) for p in parts]
+
+    return ints
+
 class CmdLoop(threading.Thread):
     def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015,
                  qcommand, qtransmit):
@@ -169,7 +178,9 @@ class CmdLoop(threading.Thread):
                                             tint=nonNegativeFloat, R=nonNegativeFloat,
                                             maxCurrent=nonNegativeFloat,
                                             maxTempRate=nonNegativeFloat,
-                                            failsafeFraction=nonNegativeFloat),
+                                            failsafeFraction=nonNegativeFloat,
+                                            safetyBand=nonNegativeFloat,
+                                            safetySensors=listOfIntegers),
                              connect=dict(id=int, bus=str),
                              readReg=dict(id=int, name=str, cnt=integer),
                              writeReg=dict(id=int, name=str, field=str, value=integer),
