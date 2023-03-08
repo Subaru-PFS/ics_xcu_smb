@@ -41,6 +41,8 @@ class PidHeater(object):
         self.last_pv = 0.0  # last process variable
         self.mv_min = 0.0
         self.mv_max = 5000.0
+        self.safetyMode = False
+        self.traceMask = 0
 
         # There is a newer loop implementation which uses physical parameters and 
         # which is controlled entirely by the external caller. 
@@ -138,8 +140,9 @@ class PidHeater(object):
     def heater_mode(self, value):
         if value < 0 or value > self.LOOP_MODE_PID:
             raise ValueError("Heater Mode value out of range")
-        self.logger.info('htr %d: setting loop mode from %s to %s', 
-                         self._heater_num, self._heater_mode, value)
+        if value != self._heater_mode:
+            self.logger.info('htr %d: setting loop mode from %s to %s',
+                             self._heater_num, self._heater_mode, value)
         self._heater_mode = value
 
     @property
@@ -318,6 +321,17 @@ class PidHeater(object):
         if self.heater_mode == self.LOOP_MODE_PID:
             self.htr_set_heater_current(I_i)
 
+    def sensorVal(self, sensorNum):
+        """Return the value for a given sensor. """
+
+        sensorName = 'rtd%d' % (sensorNum)
+        pv = Gbl.telemetry[sensorName]
+        return pv
+
+    def heaterSensorVal(self):
+        """Return the value of the sensor we use for the heater loop."""
+        return self.sensorVal(self.heater_ctrl_sensor)
+
     def getSafetyTemp(self):
         """Calculate the temperature we want to be higher than.
 
@@ -341,7 +355,7 @@ class PidHeater(object):
 
         minTemp = 273.0
         for s in sensors:
-            temp = Gbl.telemetry['rtd%d' % s]
+            temp = self.sensorVal(s)
             if s == self.heater_ctrl_sensor or np.isnan(temp) or temp <= 0 or temp >= 400:
                 continue
             if temp < minTemp:
@@ -359,16 +373,23 @@ class PidHeater(object):
         """
 
         if self.heater_ctrl_sensor > 0:
-            sensor = 'rtd%d' % (self.heater_ctrl_sensor)
-            pv = Gbl.telemetry[sensor]
+            pv = self.heaterSensorVal()
             setPoint = self._heater_set_pt
             minTemp = self.getSafetyTemp()
 
             if pv < minTemp:
-                self.logger.warning('safety temp breached (%s < %s), forcing PID mode!',
-                                    pv, minTemp)
+                if not self.safetyMode:
+                    self.logger.warning('safety temp breached (%s < %s), '
+                                        'overriding PID setpoint from %0.3f to %0.3f',
+                                        pv, minTemp, setPoint, minTemp)
+                self.safetyMode = True
                 setPoint = minTemp
                 self.set_htr_mode(self.LOOP_MODE_PID)
+            else:
+                if self.safetyMode:
+                    self.logger.info('safety mode retired with (%0.3f >= %0.3f)',
+                                     pv, minTemp)
+                self.safetyMode = False
 
         if self.heater_mode == self.LOOP_MODE_POWER:
             self.htr_set_heater_current(self.heater_current)
@@ -381,8 +402,7 @@ class PidHeater(object):
         if self.heater_mode != self.LOOP_MODE_PID:
             return
 
-        sensor = 'rtd%d' % (self.heater_ctrl_sensor)
-        pv = Gbl.telemetry[sensor]
+        pv = self.heaterSensorVal()
 
         # Taper slew to our temperature change rate limit
         delta = pv - setPoint
@@ -578,8 +598,9 @@ class PidHeater(object):
                 self.last_pv = 0.0
             self.heater_ctrl_sensor = sensor
 
-        if trace is not None:
-            self.traceMask = trace
+        if trace is None:
+            trace = 0
+        self.traceMask = trace
 
         with self.configLock:
             self.impulse(0, 0)
