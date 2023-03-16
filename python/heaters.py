@@ -1,7 +1,9 @@
 import logging
+import socket
 import threading
 
 import numpy as np
+import yaml
 
 from DAC8775 import DAC
 import quieres
@@ -16,7 +18,7 @@ class PidHeater(object):
     LOOP_MODE_PID = 3
 
     TRACE_LOOP = 0x01
-    
+
     def __init__(self, idx, smbdb, dacs):
         self.logger = logging.getLogger('heaters')
         self.logger.setLevel(logging.INFO)
@@ -31,16 +33,12 @@ class PidHeater(object):
         self.maxTotalCurrent = 0.096
         self.currentLimit = self.maxTotalCurrent
 
-        self._heater_p_term = 1.0
-        self._heater_i_term = 1.0
-        self._heater_d_term = 0.0
         self._heater_current = 0.0
         self._heater_mode = self.LOOP_MODE_IDLE
         self._heater_ctrl_sensor = 0
         self._heater_set_pt = 0.0
+
         self.last_pv = 0.0  # last process variable
-        self.mv_min = 0.0
-        self.mv_max = 5000.0
         self.safetyMode = False
         self.traceMask = 0
 
@@ -53,14 +51,50 @@ class PidHeater(object):
                                failsafeFraction=0.5,
                                trace=0,
                                sensor=None,
-                               safetyBand=2.0, safetySensors=None)
+                               safetyBand=3.0, safetySensors=None)
 
         # We want to support tweaking the loop while it is running.
         # Try to do that safely.
         self.configLock = threading.RLock()
 
         self.connectDAC()
-        self.config_heater_params()
+        self.loadDefaults()
+
+    def armFromHost(self):
+        try:
+            hostname = socket.gethostname()
+            hostname1 = hostname.split(".")[0]
+            arm = hostname1[-2]
+            if arm == 'n':
+                return 'nir'
+            elif arm in 'br':
+                return 'vis'
+            else:
+                return 'unknown'
+        except Exception as e:
+            self.logger.warning('failed to resolve hostname type from %s: %s',
+                                hostname, e)
+            return 'unknown'
+
+    def loadDefaults(self):
+        """Load default configuration """
+
+        arm = self.armFromHost()
+        if arm not in {'vis', 'nir'}:
+            raise RuntimeError('cannot resolve arm name')
+        with open('etc/heaters.yaml', 'rt') as ys:
+            cfg = yaml.load(ys)
+
+            heaters = cfg[arm]['loops']
+            for name in heaters.keys():
+                h = heaters[name]
+                if h['id'] == self._heater_num:
+                    self.logger.info('configuring loop %d with %s',
+                                     self._heater_num, h)
+                    h.pop('id')
+                    self.configure(**h)
+
+        # nir or vis? Yuck.
 
     def connectDAC(self):
         restart = hasattr(self, 'dac')
@@ -76,41 +110,11 @@ class PidHeater(object):
             self.set_htr_mode(self.heater_mode)
             if self.heater_mode == self.LOOP_MODE_POWER:
                 self.htr_set_heater_current(self.heater_current)
-        
+
     def __str__(self):
         configList = ["%s=%s" % (k,v) for k,v in self.loopConfig.items()]
         return "heater num=%d mode=%d sensor=%d %s" % (self._heater_num, self.heater_mode, 
                                                        self.heater_ctrl_sensor, " ".join(configList))
-        
-    @property
-    def heater_p_term(self):
-        return self._heater_p_term
-
-    @heater_p_term.setter
-    def heater_p_term(self, value):
-        if value < self.mv_min or value > self.mv_max:
-            raise ValueError("Heater P Term out of range")
-        self._heater_p_term = value
-
-    @property
-    def heater_i_term(self):
-        return self._heater_i_term
-
-    @heater_i_term.setter
-    def heater_i_term(self, value):
-        if value < self.mv_min or value > self.mv_max:
-            raise ValueError("Heater I Term out of range")
-        self._heater_i_term = value
-
-    @property
-    def heater_d_term(self):
-        return self._heater_d_term
-
-    @heater_d_term.setter
-    def heater_d_term(self, value):
-        if value < self.mv_min or value > self.mv_max:
-            raise ValueError("Heater D Term out of range")
-        self._heater_d_term = value
 
     @property
     def heater_set_pt(self):
@@ -155,16 +159,6 @@ class PidHeater(object):
             raise ValueError("Heater current value out of range")
         self._heater_current = value
 
-    def config_heater_params(self):
-        htr_param_dict = quieres.db_fetch_heater_params(self.db, self._heater_num)
-        self._heater_p_term = htr_param_dict['P']
-        self._heater_i_term = htr_param_dict['I']
-        self._heater_d_term = htr_param_dict['D']
-        self._heater_set_pt = htr_param_dict['set_pt']
-        self._heater_ctrl_sensor = htr_param_dict['ctrl_sensor']
-        # self._heater_mode = htr_param_dict['mode']
-        # self._heater_current = htr_param_dict['htr_current']
-
     def set_htr_mode(self, mode):
         if mode == self.LOOP_MODE_IDLE:
             self.htr_enable_heater_current(False)
@@ -179,8 +173,6 @@ class PidHeater(object):
         else:
             self.logger.error('htr %d invalid mode request %s ignored',
                               self._heater_num, mode)
-            
-        quieres.db_update_htr_params(self.db, self.heater_mode, 'mode', self._heater_num)
 
     def htr_enable_heater_current(self, state):
         with Gbl.ioLock:
@@ -198,7 +190,7 @@ class PidHeater(object):
 
     def htr_set_heater_fraction(self, fraction):
         return self.htr_set_heater_current(self.maxTotalCurrent * fraction)
-        
+
     def htr_set_heater_current(self, current):
         """Set all the the current DAC registers for this heater. 
 
@@ -504,20 +496,23 @@ class PidHeater(object):
                                                                  self.heater_set_pt,
                                                                  self.heater_current)
         if full:
-            cfg = self.loopConfig
-            ret2 = 'P=%d I=%d' % (cfg['P'], cfg['I'])
-            ret3 = ('rho=%0.2f tau=%0.2f R=%0.2f tint=%0.2f '
-                    'maxCurrent=%0.3f failsafeFraction=%0.2f maxTempRate=%0.2f '
-                    'safetyBand=%0.1f safetySensors=%s'% (cfg['rho'],
-                                                          cfg['tau'],
-                                                          cfg['R'],
-                                                          cfg['tint'],
-                                                          self.currentLimit,
-                                                          cfg['failsafeFraction'],
-                                                          cfg['maxTempRate'],
-                                                          cfg['safetyBand'], cfg['safetySensors']))
-            ret = '%s %s %s' % (ret, ret2, ret3)
-
+            try:
+                cfg = self.loopConfig
+                ret2 = 'P=%d I=%d' % (cfg['P'], cfg['I'])
+                ret3 = ('rho=%0.2f tau=%0.2f R=%0.2f tint=%0.2f '
+                        'maxCurrent=%0.3f failsafeFraction=%0.2f maxTempRate=%0.2f '
+                        'safetyBand=%0.1f safetySensors=%s'% (cfg['rho'],
+                                                              cfg['tau'],
+                                                              cfg['R'],
+                                                              cfg['tint'],
+                                                              self.currentLimit,
+                                                              cfg['failsafeFraction'],
+                                                              cfg['maxTempRate'],
+                                                              cfg['safetyBand'], cfg['safetySensors']))
+                ret = '%s %s %s' % (ret, ret2, ret3)
+            except Exception as e:
+                self.logger.warn('status failed, with cfg=%s', cfg)
+                raise
         return ret
 
     def configure(self, *, on=None,
