@@ -18,7 +18,7 @@ class PidHeater(object):
     LOOP_MODE_PID = 3
 
     TRACE_LOOP = 0x01
-    
+
     def __init__(self, idx, smbdb, dacs):
         self.logger = logging.getLogger('heaters')
         self.logger.setLevel(logging.INFO)
@@ -33,16 +33,12 @@ class PidHeater(object):
         self.maxTotalCurrent = 0.096
         self.currentLimit = self.maxTotalCurrent
 
-        self._heater_p_term = 1.0
-        self._heater_i_term = 1.0
-        self._heater_d_term = 0.0
         self._heater_current = 0.0
         self._heater_mode = self.LOOP_MODE_IDLE
         self._heater_ctrl_sensor = 0
         self._heater_set_pt = 0.0
+
         self.last_pv = 0.0  # last process variable
-        self.mv_min = 0.0
-        self.mv_max = 5000.0
         self.safetyMode = False
         self.traceMask = 0
 
@@ -114,41 +110,11 @@ class PidHeater(object):
             self.set_htr_mode(self.heater_mode)
             if self.heater_mode == self.LOOP_MODE_POWER:
                 self.htr_set_heater_current(self.heater_current)
-        
+
     def __str__(self):
         configList = ["%s=%s" % (k,v) for k,v in self.loopConfig.items()]
         return "heater num=%d mode=%d sensor=%d %s" % (self._heater_num, self.heater_mode, 
                                                        self.heater_ctrl_sensor, " ".join(configList))
-        
-    @property
-    def heater_p_term(self):
-        return self._heater_p_term
-
-    @heater_p_term.setter
-    def heater_p_term(self, value):
-        if value < self.mv_min or value > self.mv_max:
-            raise ValueError("Heater P Term out of range")
-        self._heater_p_term = value
-
-    @property
-    def heater_i_term(self):
-        return self._heater_i_term
-
-    @heater_i_term.setter
-    def heater_i_term(self, value):
-        if value < self.mv_min or value > self.mv_max:
-            raise ValueError("Heater I Term out of range")
-        self._heater_i_term = value
-
-    @property
-    def heater_d_term(self):
-        return self._heater_d_term
-
-    @heater_d_term.setter
-    def heater_d_term(self, value):
-        if value < self.mv_min or value > self.mv_max:
-            raise ValueError("Heater D Term out of range")
-        self._heater_d_term = value
 
     @property
     def heater_set_pt(self):
@@ -207,8 +173,6 @@ class PidHeater(object):
         else:
             self.logger.error('htr %d invalid mode request %s ignored',
                               self._heater_num, mode)
-            
-        quieres.db_update_htr_params(self.db, self.heater_mode, 'mode', self._heater_num)
 
     def htr_enable_heater_current(self, state):
         with Gbl.ioLock:
@@ -226,7 +190,7 @@ class PidHeater(object):
 
     def htr_set_heater_fraction(self, fraction):
         return self.htr_set_heater_current(self.maxTotalCurrent * fraction)
-        
+
     def htr_set_heater_current(self, current):
         """Set all the the current DAC registers for this heater. 
 

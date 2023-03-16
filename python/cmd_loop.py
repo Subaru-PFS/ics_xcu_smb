@@ -107,10 +107,12 @@ class CmdLoop(threading.Thread):
                     self.logger.info('processing raw cmd: %s', cmd)
                     self.process_string_cmd(cmd)
                 except CmdException as e:
-                    self.logger.warn('command failure: %s', e, stack_info=True)
+                    self.logger.warn('command failure on %s: %s',
+                                     e, cmd, stack_info=True)
                     self.qxmit.put('ERROR: %s' % e.msg)
                 except Exception as e:
-                    self.logger.warn('command failure: %s', e, stack_info=True)
+                    self.logger.warn('unexpected command failure on : %s',
+                                     e, cmd, stack_info=True)
                     self.qxmit.put('FATAL ERROR: %s' % (e))
             else:
                 self.process_queued_cmd(cmd)
@@ -342,21 +344,6 @@ class CmdLoop(threading.Thread):
             value_dict = quieres.db_adc_fetch_params(self.db, p1)
             output = str("sensor_type = %s" % value_dict["sensor_type"])
 
-        # Read PID Proportional P factor.
-        elif cmd == 'P':
-            value_dict = quieres.db_fetch_heater_params(self.db, p1)
-            output = str("P_term = %s" % value_dict["P"])
-
-        # Read PID Integral I factor.
-        elif cmd == 'I':
-            value_dict = quieres.db_fetch_heater_params(self.db, p1)
-            output = str("I_term = %s" % value_dict["I"])
-
-        # Read PID Derivative D factor
-        elif cmd == 'D':
-            value_dict = quieres.db_fetch_heater_params(self.db, p1)
-            output = str("D_term = %s" % value_dict["D"])
-
         # Read Heater Looop Set Point.
         elif cmd == 'W':
             value_dict = quieres.db_fetch_heater_params(self.db, p1)
@@ -450,22 +437,6 @@ class CmdLoop(threading.Thread):
         # (0=sinc^4 1=rsv'd 2=sinc^3 3=rsv'd 4=fast sinc^4 5=fast sinc^3 6=rsv'd 7=post filter enabled
         elif cmd == 'Q':
             self.adcs[p1 - 1].set_filter_type(p2)
-
-        # Heater P Setting
-        elif cmd == 'P':
-            quieres.db_update_htr_params(self.db, p2, 'P', p1)
-            self.heaters[p1-1].heater_p_term = p2
-
-        # Heater I Setting
-        elif cmd == 'I':
-            quieres.db_update_htr_params(self.db, p2, 'I', p1)
-            self.heaters[p1 - 1].heater_i_term = p2
-
-        # Heater D Setting
-        elif cmd == 'D':
-            quieres.db_update_htr_params(self.db, p2, 'D', p1)
-            if p1 < len(self.heaters) + 1:
-                self.heaters[p1 - 1].heater_d_term = p2
 
         # Heater Loop Control Sensor
         elif cmd == 'J':
