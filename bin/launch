@@ -1,8 +1,19 @@
+#!/bin/bash
+
+# This is called from cron as a @reboot task. But with the Linux we are running
+# those get called very early, specifically before the network is fully up. So
+# wait here for that, so that the actual server process can get the hostname. 
+while test "$(hostname -s)" = "localhost"; do
+    echo "$(date -Ins) waiting for hostname" >> /tmp/bootup
+    sleep 0.5
+done
+
 now=`date +"%Y-%m-%dT%H:%M:%S"`
 cd /db/ics_xcu_SMB
+rm *.log
+
 nohup python3 python/main.py "$@" >& /db/smb-$now.log &
 SMB_PID=$!
-
 echo $SMB_PID > /run/user/$(id -u)/smb.pid
 
 # Let the threads start; give them all SCHED_FIFO. We actually only need to
