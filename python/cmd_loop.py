@@ -64,6 +64,16 @@ def listOfIntegers(s):
 
     return ints
 
+def validMode(s):
+    """Accept one of the valid loop modes."""
+    s = s.strip()
+    s = s.tolower()
+
+    validModes = {'idle', 'power', 'temp'}
+    if s not in validModes:
+        raise CmdException(f'mode request {s} not one of the valid {validModes}')
+    return s
+
 class CmdLoop(threading.Thread):
     def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015,
                  qcommand, qtransmit):
@@ -170,8 +180,9 @@ class CmdLoop(threading.Thread):
         return argDict
 
     heaterSubCommands = dict(configure=dict(id=int,
-                                            on=logical,
+                                            mode=validMode,
                                             setpoint=nonNegativeFloat,
+                                            power=nonNegativeFloat,
                                             trace=integer,
                                             P=int, I=int,
                                             offset=nonNegativeFloat,
