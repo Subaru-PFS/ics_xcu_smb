@@ -180,7 +180,6 @@ class CmdLoop(threading.Thread):
                                             tint=nonNegativeFloat, R=nonNegativeFloat,
                                             maxCurrent=nonNegativeFloat,
                                             maxTempRate=nonNegativeFloat,
-                                            failsafeFraction=nonNegativeFloat,
                                             safetyBand=nonNegativeFloat,
                                             safetySensors=listOfIntegers),
                              connect=dict(id=int, bus=str),

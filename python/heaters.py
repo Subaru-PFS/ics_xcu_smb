@@ -48,7 +48,6 @@ class PidHeater(object):
                                rho=None, tau=None, tint=None, R=None,
                                lastSum=0.0,
                                maxTempRate=1/2.0,
-                               failsafeFraction=0.5,
                                trace=0,
                                sensor=None,
                                safetyBand=3.0, safetySensors=None)
@@ -500,7 +499,7 @@ class PidHeater(object):
                 cfg = self.loopConfig
                 ret2 = 'P=%d I=%d' % (cfg['P'], cfg['I'])
                 ret3 = ('rho=%0.2f tau=%0.2f R=%0.2f tint=%0.2f '
-                        'maxCurrent=%0.3f failsafeFraction=%0.2f maxTempRate=%0.2f '
+                        'maxCurrent=%0.3f maxTempRate=%0.2f '
                         'safetyBand=%0.1f safetySensors=%s'% (cfg['rho'],
                                                               cfg['tau'],
                                                               cfg['R'],
@@ -526,7 +525,6 @@ class PidHeater(object):
                   R=None, tint=None,
                   maxCurrent=None,
                   maxTempRate=None,
-                  failsafeFraction=None,
                   safetyBand=None, safetySensors=None,
                   loopCount=1):
         """Reconfigure heater loop based on command options.
