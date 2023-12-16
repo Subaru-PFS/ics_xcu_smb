@@ -600,7 +600,7 @@ class PidHeater(object):
                 cfg['I'] = I
             if offset is not None:
                 if offset < 0 or offset > self.maxTotalCurrent:
-                    raise RuntimeError(f'offset must be 0.0..{self.maxTotalCurrent}')
+                    raise RuntimeError('offset must be 0.0..%s' % (self.maxTotalCurrent))
                 cfg['offset'] = offset
                 cfg['lastSum'] = 0.0
             if rho is not None:

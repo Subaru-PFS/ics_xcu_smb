@@ -10,7 +10,7 @@ done
 
 now=`date +"%Y-%m-%dT%H:%M:%S"`
 cd /db/ics_xcu_SMB
-rm *.log
+rm ../*.log
 
 nohup python3 python/main.py "$@" >& /db/smb-$now.log &
 SMB_PID=$!

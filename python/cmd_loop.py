@@ -67,11 +67,11 @@ def listOfIntegers(s):
 def validMode(s):
     """Accept one of the valid loop modes."""
     s = s.strip()
-    s = s.tolower()
+    s = s.lower()
 
     validModes = {'idle', 'power', 'temp'}
     if s not in validModes:
-        raise CmdException(f'mode request {s} not one of the valid {validModes}')
+        raise CmdException('mode request %s not one of the valid (%s)' % (s, validModes))
     return s
 
 class CmdLoop(threading.Thread):
@@ -193,6 +193,7 @@ class CmdLoop(threading.Thread):
                                             maxTempRate=nonNegativeFloat,
                                             safetyBand=nonNegativeFloat,
                                             safetySensors=listOfIntegers),
+                             centerOffset=dict(id=int),
                              connect=dict(id=int, bus=str),
                              readReg=dict(id=int, name=str, cnt=integer),
                              writeReg=dict(id=int, name=str, field=str, value=integer),
