@@ -241,8 +241,8 @@ class PidHeater(object):
                 raise RuntimeError('htr %d: heater physical parameter %s has not been set' % 
                                    (self._heater_num, k))
 
-    def currentToPower(self, current):
-        return current**2 * self.loopConfig['R']
+    def currentToPowerLevel(self, current):
+        return current / self.maxTotalCurrent
 
     def _loopStep(self, delta, loopPeriod):
         """Given a error, calculate and apply loop correction
@@ -626,14 +626,14 @@ class PidHeater(object):
 
                 # Try to be bumpless when switching to control loop.
                 cfg['lastSum'] = 0.0
-                cfg['offset'] = self.currentToPower(self.heater_current)
+                cfg['offset'] = self.currentToPowerLevel(self.heater_current)
             self.last_pv = 0.0
             self.set_htr_mode(self.LOOP_MODE_PID) # Will throw up on config error.
         elif mode == 'power':
             self.last_pv = 0.0
             cfg['lastSum'] = 0.0
             if power is None:
-                power = self.currentToPower(self.heater_current)
+                power = self.currentToPowerLevel(self.heater_current)
             self.htr_set_heater_fraction(power)
             self.set_htr_mode(self.LOOP_MODE_POWER) # Will throw up on config error.
 
