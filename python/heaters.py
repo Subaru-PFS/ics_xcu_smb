@@ -40,6 +40,7 @@ class PidHeater(object):
         self._heater_set_pt = 0.0
 
         self.last_pv = 0.0  # last process variable
+        self.pv = 0.0
         self.last_power = 0.0  # last power level
         self.safetyMode = False
         self.traceMask = 0
@@ -363,6 +364,7 @@ class PidHeater(object):
 
         if self.heater_ctrl_sensor > 0:
             pv = self.heaterSensorVal()
+            self.pv = pv
             setPoint = self._heater_set_pt
             minTemp = self.getSafetyTemp()
 
@@ -390,8 +392,6 @@ class PidHeater(object):
 
         if self.heater_mode != self.LOOP_MODE_PID:
             return
-
-        pv = self.heaterSensorVal()
 
         # Taper slew to our temperature change rate limit
         delta = pv - setPoint
@@ -488,7 +488,7 @@ class PidHeater(object):
                                                                             self.heater_ctrl_sensor,
                                                                             self.heater_set_pt,
                                                                             self.heater_current,
-                                                                            self.last_pv)
+                                                                            self.pv)
         if full:
             try:
                 cfg = self.loopConfig
