@@ -2,13 +2,12 @@ import logging
 import socket
 import threading
 
-import numpy as np
-import yaml
-
-from DAC8775 import DAC
-import quieres
-
 import Gbl
+import numpy as np
+import quieres
+import yaml
+from DAC8775 import DAC
+
 
 class PidHeater(object):
     """ pid_heater class """
@@ -211,7 +210,6 @@ class PidHeater(object):
         have settings which differ from each other by more than 1.
 
         """
-
         maxTotalCurrent = self.maxTotalCurrent
         maxTotalBits = 4*0xffff
 
@@ -271,7 +269,7 @@ class PidHeater(object):
         """
 
         cfg = self.loopConfig
-        
+
         A = cfg['P'] / cfg['rho']
         B = (cfg['I'] * loopPeriod)/(cfg['rho'] * cfg['tau'])
         k0 = cfg['tint'] / loopPeriod
@@ -429,7 +427,7 @@ class PidHeater(object):
         else:
             tempRate = 0.0
         self.last_pv = pv
-        
+
         if tempRate > self.loopConfig['maxTempRate']:
             self.logger.critical('htr %d temp rate %0.2f K/min exceeds limit %0.2f',
                                  self._heater_num, tempRate, self.loopConfig['maxTempRate'])
@@ -439,11 +437,11 @@ class PidHeater(object):
         with self.configLock:
             self._loopStep(delta, loopPeriod)
         self.loopConfig['zeroInt'] = False
-        
+
     def centerOffset(self):
         """Move the integral offset to a constant term."""
         self.loopConfig['zeroInt'] = True
-    
+
     def impulse(self, current, duration=None):
         """Perturb the loop by injecting an impulse
 
@@ -539,7 +537,6 @@ class PidHeater(object):
                   power=None,
                   trace=None,
                   P=None, I=None,
-                  offset=None,
                   sensor=None,
                   rho=None, tau=None,
                   R=None, tint=None,
@@ -563,8 +560,6 @@ class PidHeater(object):
             The P_i term
         I : int
             The I_i term
-        offset : float
-            The default output.
         sensor : int
             Which temperature sensor to servo from.
             If this is 0, we neither calculate nor apply signal.

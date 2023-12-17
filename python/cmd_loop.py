@@ -1,14 +1,14 @@
 from importlib import reload
 
 import logging
-import threading
 import os
 import queue
+import threading
 
 import quieres
+import topcmds
 import version
 
-import topcmds
 
 class CmdException(Exception):
     @property
@@ -165,7 +165,7 @@ class CmdLoop(threading.Thread):
                 self.logger.info('setting arg %s = True', k)
                 argDict[k] = True
                 continue
-            
+
             # Convert
             try:
                 opt = matchType(v)
@@ -185,7 +185,6 @@ class CmdLoop(threading.Thread):
                                             power=nonNegativeFloat,
                                             trace=integer,
                                             P=nonNegativeFloat, I=nonNegativeFloat,
-                                            offset=nonNegativeFloat,
                                             sensor=int,
                                             rho=nonNegativeFloat, tau=nonNegativeFloat,
                                             tint=nonNegativeFloat, R=nonNegativeFloat,
