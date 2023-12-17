@@ -142,7 +142,7 @@ class CmdLoop(threading.Thread):
         dict : parsed options.
         """
 
-        self.logger.info('parseCommand %s', argParts)
+        self.logger.debug('parseCommand %s', argParts)
         argDict = dict()
         for a in argParts:
             try:
@@ -184,7 +184,7 @@ class CmdLoop(threading.Thread):
                                             setpoint=nonNegativeFloat,
                                             power=nonNegativeFloat,
                                             trace=integer,
-                                            P=int, I=int,
+                                            P=nonNegativeFloat, I=nonNegativeFloat,
                                             offset=nonNegativeFloat,
                                             sensor=int,
                                             rho=nonNegativeFloat, tau=nonNegativeFloat,

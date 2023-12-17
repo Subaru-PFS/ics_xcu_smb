@@ -42,18 +42,22 @@ class PidHeater(object):
         self.last_pv = 0.0  # last process variable
         self.pv = 0.0
         self.last_power = 0.0  # last power level
+        self.lastPval = 0.0
+        self.lastIval = 0.0
+        self.offset = 0.0
         self.safetyMode = False
         self.traceMask = 0
 
         # There is a newer loop implementation which uses physical parameters and 
         # which is controlled entirely by the external caller. 
-        self.loopConfig = dict(P=1.0, I=1.0, offset=0.0,
+        self.loopConfig = dict(P=1.0, I=1.0,
                                rho=None, tau=None, tint=None, R=None,
                                lastSum=0.0,
                                maxTempRate=1/2.0,
                                trace=0,
                                sensor=None,
-                               safetyBand=3.0, safetySensors=None)
+                               safetyBand=3.0, safetySensors=None,
+                               zeroInt=False)
 
         # We want to support tweaking the loop while it is running.
         # Try to do that safely.
@@ -278,7 +282,20 @@ class PidHeater(object):
             lastSum = cfg['lastSum']
             sum = delta + (1 - 1/k0)*lastSum
 
-            P_i = -A*delta - B*sum + cfg['offset']
+            if cfg['zeroInt']:
+                self.logger.info('htr %d: zeroing integral term. offset=%0.3f new=%0.3f int=%0.3f', 
+                                 self._heater_num,
+                                 self.offset, -B*sum, 
+                                 lastSum)
+                self.offset += -B*sum
+                sum = lastSum = 0.0
+                cfg['lastSum'] = 0.0
+                cfg['zeroInt'] = False
+
+            self.lastPval = -A*delta
+            self.lastIval = -B*sum
+
+            P_i = -A*delta - B*sum + self.offset
             if P_i < 0:
                 P_i = 0
 
@@ -305,7 +322,7 @@ class PidHeater(object):
             self.logger.info('htr %d delta: %0.4f %0.4f %0.4f %0.4f P_i: %0.4f I_i: %0.4f '
                              'lastSum: %0.4f sum: %0.4f A: %0.4f B: %0.4f ' % (self._heater_num, delta,
                                                                                -A*delta, -B*sum,
-                                                                               cfg['offset'],
+                                                                               self.offset,
                                                                                P_i, I_i * 1000,
                                                                                lastSum, sum, A, B))
         if self.heater_mode == self.LOOP_MODE_PID:
@@ -421,7 +438,12 @@ class PidHeater(object):
         # to paper over sampling jitter.  Stretch goal.
         with self.configLock:
             self._loopStep(delta, loopPeriod)
-
+        self.loopConfig['zeroInt'] = False
+        
+    def centerOffset(self):
+        """Move the integral offset to a constant term."""
+        self.loopConfig['zeroInt'] = True
+    
     def impulse(self, current, duration=None):
         """Perturb the loop by injecting an impulse
 
@@ -492,7 +514,10 @@ class PidHeater(object):
         if full:
             try:
                 cfg = self.loopConfig
-                ret2 = 'P=%d I=%d' % (cfg['P'], cfg['I'])
+                ret2 = 'P=%d I=%d offset=%0.3f lastPval=%0.3f lastIval=%0.3f' % (cfg['P'], cfg['I'], 
+                                                                                 self.offset,
+                                                                                 self.lastPval, 
+                                                                                 self.lastIval)
                 ret3 = ('rho=%0.2f tau=%0.2f R=%0.2f tint=%0.2f '
                         'maxCurrent=%0.3f maxTempRate=%0.2f '
                         'safetyBand=%0.1f safetySensors=%s'% (cfg['rho'],
@@ -599,11 +624,6 @@ class PidHeater(object):
                 cfg['P'] = P
             if I is not None:
                 cfg['I'] = I
-            if offset is not None:
-                if offset < 0 or offset > self.maxTotalCurrent:
-                    raise RuntimeError('offset must be 0.0..%s' % (self.maxTotalCurrent))
-                cfg['offset'] = offset
-                cfg['lastSum'] = 0.0
             if rho is not None:
                 cfg['rho'] = rho
             if tau is not None:
@@ -627,7 +647,7 @@ class PidHeater(object):
 
                 # Try to be bumpless when switching to control loop.
                 cfg['lastSum'] = 0.0
-                cfg['offset'] = self.heater_current
+                cfg['offset'] = 0.0
             self.last_pv = 0.0
             self.set_htr_mode(self.LOOP_MODE_PID) # Will throw up on config error.
         elif mode == 'power':
