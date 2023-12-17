@@ -1,14 +1,14 @@
 from importlib import reload
 
 import logging
-import threading
 import os
 import queue
+import threading
 
 import quieres
+import topcmds
 import version
 
-import topcmds
 
 class CmdException(Exception):
     @property
@@ -63,6 +63,16 @@ def listOfIntegers(s):
     ints = [integer(p) for p in parts]
 
     return ints
+
+def validMode(s):
+    """Accept one of the valid loop modes."""
+    s = s.strip()
+    s = s.lower()
+
+    validModes = {'idle', 'power', 'temp'}
+    if s not in validModes:
+        raise CmdException('mode request %s not one of the valid (%s)' % (s, validModes))
+    return s
 
 class CmdLoop(threading.Thread):
     def __init__(self, smbdb, tlm_dict, bang_bangs, adcs, heaters, ads1015,
@@ -132,7 +142,7 @@ class CmdLoop(threading.Thread):
         dict : parsed options.
         """
 
-        self.logger.info('parseCommand %s', argParts)
+        self.logger.debug('parseCommand %s', argParts)
         argDict = dict()
         for a in argParts:
             try:
@@ -155,7 +165,7 @@ class CmdLoop(threading.Thread):
                 self.logger.info('setting arg %s = True', k)
                 argDict[k] = True
                 continue
-            
+
             # Convert
             try:
                 opt = matchType(v)
@@ -170,19 +180,19 @@ class CmdLoop(threading.Thread):
         return argDict
 
     heaterSubCommands = dict(configure=dict(id=int,
-                                            on=logical,
+                                            mode=validMode,
                                             setpoint=nonNegativeFloat,
+                                            power=nonNegativeFloat,
                                             trace=integer,
-                                            P=int, I=int,
-                                            offset=nonNegativeFloat,
+                                            P=nonNegativeFloat, I=nonNegativeFloat,
                                             sensor=int,
                                             rho=nonNegativeFloat, tau=nonNegativeFloat,
                                             tint=nonNegativeFloat, R=nonNegativeFloat,
                                             maxCurrent=nonNegativeFloat,
                                             maxTempRate=nonNegativeFloat,
-                                            failsafeFraction=nonNegativeFloat,
                                             safetyBand=nonNegativeFloat,
                                             safetySensors=listOfIntegers),
+                             centerOffset=dict(id=int),
                              connect=dict(id=int, bus=str),
                              readReg=dict(id=int, name=str, cnt=integer),
                              writeReg=dict(id=int, name=str, field=str, value=integer),

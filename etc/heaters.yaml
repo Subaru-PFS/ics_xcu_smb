@@ -12,7 +12,6 @@ loop: &LOOP
   R: null
   tint: null
   maxCurrent: 0.096
-  failsafeFraction: 0.1
   maxTempRate: 1.0
   safetyBand: 0.0
   trace: 0
@@ -30,7 +29,6 @@ nir:
       tau: 600.0
       R: 470.0
       tint: 1200.0
-      maxCurrent: 0.055
       maxTempRate: 5.0
 
     h4:
@@ -43,6 +41,7 @@ nir:
       tau: 600.0
       R: 220.0
       tint: 1200.0
+      maxCurrent: 0.06
       maxTempRate: 0.5
       safetyBand: 5.0
 
@@ -53,11 +52,11 @@ vis:
       <<: *LOOP
       id: 2
       sensor: 12
-      P: 200.0
-      I: 1000.0
+      P: 400.0
+      I: 1500.0
       rho: 33.0
       tau: 3600.0
       R: 220.0
       tint: 2400.0
       maxTempRate: 2.0
-      safetyBand: 3.0
+      safetyBand: 5.0
