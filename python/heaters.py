@@ -484,10 +484,11 @@ class PidHeater(object):
         return str(ret)
 
     def status(self, *, full=False):
-        ret = 'mode=%s sensor=%d setpoint=%0.4f output=%0.4f' % (self.heater_mode,
-                                                                 self.heater_ctrl_sensor,
-                                                                 self.heater_set_pt,
-                                                                 self.heater_current)
+        ret = 'mode=%s sensor=%d setpoint=%0.4f output=%0.4f temp=%0.4f' % (self.heater_mode,
+                                                                            self.heater_ctrl_sensor,
+                                                                            self.heater_set_pt,
+                                                                            self.heater_current,
+                                                                            self.last_pv)
         if full:
             try:
                 cfg = self.loopConfig
@@ -626,7 +627,7 @@ class PidHeater(object):
 
                 # Try to be bumpless when switching to control loop.
                 cfg['lastSum'] = 0.0
-                cfg['offset'] = self.currentToPowerLevel(self.heater_current)
+                cfg['offset'] = self.heater_current
             self.last_pv = 0.0
             self.set_htr_mode(self.LOOP_MODE_PID) # Will throw up on config error.
         elif mode == 'power':
