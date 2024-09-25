@@ -89,12 +89,12 @@ class CmdLoop(threading.Thread):
         self.qxmit = qtransmit
         self.ads1015 = ads1015
         self.__exitEvent = threading.Event()
-        
+
         threading.Thread.__init__(self, name='cmdLoop', daemon=True)
 
     def pleaseExit(self):
         self.__exitEvent.set()
-        
+
     def run(self):
         """Main parsing loop.
 
@@ -111,7 +111,7 @@ class CmdLoop(threading.Thread):
                     return
                 else:
                     continue
-            
+
             if isinstance(cmd, str):
                 try:
                     self.logger.info('processing raw cmd: %s', cmd)
@@ -190,6 +190,8 @@ class CmdLoop(threading.Thread):
                                             tint=nonNegativeFloat, R=nonNegativeFloat,
                                             maxCurrent=nonNegativeFloat,
                                             maxTempRate=nonNegativeFloat,
+                                            warmLimit=nonNegativeFloat,
+                                            warmBand=nonNegativeFloat,
                                             safetyBand=nonNegativeFloat,
                                             safetySensors=listOfIntegers),
                              centerOffset=dict(id=int),
@@ -268,15 +270,15 @@ class CmdLoop(threading.Thread):
 
     def process_queued_cmd(self, cmd_dict):
         logging.debug('processing cmd: %s' % (cmd_dict))
-        
+
         if cmd_dict['CMD_TYPE'] == '?':
             try:
                 self.process_read_cmd(cmd_dict)
             except Exception as e:
                 self.logger.warn('command failure: %s', e, stack_info=True)
-                
+
                 self.qxmit.put('FATAL ERROR')
-                
+
         elif cmd_dict['CMD_TYPE'] == '~':
             try:
                 self.process_write_cmd(cmd_dict)
@@ -369,7 +371,7 @@ class CmdLoop(threading.Thread):
             value_dict = quieres.db_fetch_heater_params(self.db, p1)
             current = value_dict["htr_current"]
             output = str(current / self.heaters[0].maxTotalCurrent)
-            
+
         # Read One Temp Sensor.
         elif cmd == 'K':
             output = "temp={0:3.3f}K".format(self.tlm_dict["rtd" + str(p1)])
@@ -404,7 +406,7 @@ class CmdLoop(threading.Thread):
 
         if output == '':
             output = 'NO VALUE'
-            
+
         self.qxmit.put(output)
         return 1
 
@@ -477,7 +479,7 @@ class CmdLoop(threading.Thread):
         else:
             self.logger.warn('UNKNOWN command: %s', cmd)
             raise ValueError('unknown command %s' % cmd)
-        
+
         self.qxmit.put(output)
         return 1
 

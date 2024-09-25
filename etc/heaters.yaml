@@ -13,6 +13,8 @@ loop: &LOOP
   tint: null
   maxCurrent: 0.096
   maxTempRate: 1.0
+  warmLimit: 275.0
+  warmBand: 2.0
   safetyBand: 0.0
   trace: 0
 
@@ -43,7 +45,7 @@ nir:
       tint: 1200.0
       maxCurrent: 0.06
       maxTempRate: 0.5
-      safetyBand: 5.0
+      safetyBand: 7.0
 
 vis:
   <<: *BASE
@@ -59,4 +61,4 @@ vis:
       R: 220.0
       tint: 2400.0
       maxTempRate: 2.0
-      safetyBand: 5.0
+      safetyBand: 7.0
