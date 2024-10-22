@@ -56,6 +56,7 @@ class PidHeater(object):
                                trace=0,
                                sensor=None,
                                safetyBand=3.0, safetySensors=None,
+                               warmLimit=275.0, warmBand=2.0,
                                zeroInt=False)
 
         # We want to support tweaking the loop while it is running.
@@ -337,8 +338,8 @@ class PidHeater(object):
         """Return the value of the sensor we use for the heater loop."""
         return self.sensorVal(self.heater_ctrl_sensor)
 
-    def getSafetyTemp(self):
-        """Calculate the temperature we want to be higher than.
+    def calcSafetyLoop(self):
+        """Calculate the temperature we want to be higher than, and turn off loop when warm
 
         If we have cfg.safetySensors, take the minimum of those. But reject any 0/400/nans.
         Then add our cfg.safetyBand.
@@ -351,20 +352,34 @@ class PidHeater(object):
 
         sensors = self.loopConfig['safetySensors']
         band = self.loopConfig['safetyBand']
-
-        if band <= 0:
-            return 0.0
+        warmBand = self.loopConfig['warmBand']
+        warmLimit = self.loopConfig['warmLimit']
 
         if not sensors:
             sensors = range(1, 13)
 
-        minTemp = 273.0
+        minTemp = 400.0
+        maxTemp = 0.0
         for s in sensors:
             temp = self.sensorVal(s)
             if s == self.heater_ctrl_sensor or np.isnan(temp) or temp <= 0 or temp >= 400:
                 continue
             if temp < minTemp:
                 minTemp = temp
+            elif temp > maxTemp:
+                maxTemp = temp
+
+        # Shutdown PID/power/safety loops if we are safely warm
+        if self.pv >= warmLimit and (maxTemp - minTemp < warmBand):
+            self.set_htr_mode(self.LOOP_MODE_IDLE)
+            self.safetyMode = False
+            self.logger.info('safety mode retired when warm (%0.3f)',
+                             self.pv)
+            return 0.0
+
+        if band <= 0:
+            return 0.0
+
         minTemp += band
 
         return minTemp
@@ -381,7 +396,7 @@ class PidHeater(object):
             pv = self.heaterSensorVal()
             self.pv = pv
             setPoint = self._heater_set_pt
-            minTemp = self.getSafetyTemp()
+            minTemp = self.calcSafetyLoop()
 
             if pv < minTemp:
                 if not self.safetyMode:
@@ -518,13 +533,18 @@ class PidHeater(object):
                                                                                  self.lastIval)
                 ret3 = ('rho=%0.2f tau=%0.2f R=%0.2f tint=%0.2f '
                         'maxCurrent=%0.3f maxTempRate=%0.2f '
+                        'warmLimit=%0.2f warmBand=%0.2f '
                         'safetyBand=%0.1f safetySensors=%s'% (cfg['rho'],
                                                               cfg['tau'],
                                                               cfg['R'],
                                                               cfg['tint'],
                                                               self.currentLimit,
                                                               cfg['maxTempRate'],
-                                                              cfg['safetyBand'], cfg['safetySensors']))
+                                                              cfg['warmLimit'],
+                                                              cfg['warmBand'],
+                                                              cfg['safetyBand'],
+                                                              cfg['safetySensors'],
+                                                              ))
                 ret = '%s %s %s' % (ret, ret2, ret3)
             except Exception as e:
                 self.logger.warn('status failed, with cfg=%s', cfg)
@@ -543,6 +563,7 @@ class PidHeater(object):
                   maxCurrent=None,
                   maxTempRate=None,
                   safetyBand=None, safetySensors=None,
+                  warmLimit=None, warmBand=None,
                   loopCount=1):
         """Reconfigure heater loop based on command options.
 
@@ -579,9 +600,15 @@ class PidHeater(object):
             The sensors to use for calculating our minimum temperature.
         safetyBand : float
             How much warmer do we want to be than the safetySensors
+        warmLimit : float
+            At what temp to turn off heater if all sensors within warmBand
+        warmBand : float
+            When warmer than warmLimit, if all sensors within
+            this band, turn off heater
         """
 
-        self.logger.info('htr %d: configuring with %s', self._heater_num, locals())
+        self.logger.info('htr %d: configuring with %s',
+                         self._heater_num, locals())
 
         cfg = self.loopConfig
 
@@ -635,6 +662,10 @@ class PidHeater(object):
                 cfg['safetySensors'] = safetySensors
             if safetyBand is not None:
                 cfg['safetyBand'] = safetyBand
+            if warmBand is not None:
+                cfg['warmBand'] = warmBand
+            if warmLimit is not None:
+                cfg['warmLimit'] = warmLimit
         if mode == 'temp':
             if self.heater_mode != self.LOOP_MODE_PID:
                 if setpoint is None:
